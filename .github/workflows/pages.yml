@@ -1,3 +1,4 @@
+# .github/workflows/pages.yml
 name: Build and Publish Site
 
 on:
@@ -17,13 +18,39 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
 
-      - run: dotnet restore
-      - run: dotnet build -c Release --no-restore
+      # (debug helper) list where files actually are
+      - name: Show repo layout
+        run: |
+          pwd
+          ls -la
+          echo "Solutions:"; find . -maxdepth 4 -name "*.sln" -print
+          echo "Projects:";  find . -maxdepth 6 -name "*.csproj" -print
 
-      - name: Run Hello worker
+      # locate Hello.Worker project dynamically
+      - name: Locate Hello worker
+        id: locate
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -maxdepth 6 -name 'Hello.Worker.csproj' | head -n1)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Hello.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "Found: $csproj"
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore "${{ steps.locate.outputs.csproj }}"
+
+      - name: Build
+        run: dotnet build "${{ steps.locate.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Hello worker (writes to /out)
+        working-directory: ${{ steps.locate.outputs.projdir }}
         env:
-          OUTPUT_DIR: out
-        run: dotnet run --project workers/Hello.Worker/Hello.Worker.csproj -c Release
+          OUTPUT_DIR: ${{ github.workspace }}/out
+        run: dotnet run -c Release
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -32,7 +59,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: out
+          path: ${{ github.workspace }}/out
           name: github-pages
 
   deploy:
