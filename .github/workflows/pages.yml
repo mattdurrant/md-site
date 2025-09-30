@@ -52,6 +52,35 @@ jobs:
           OUTPUT_DIR: ${{ github.workspace }}/out
         run: dotnet run -c Release
 
+              # Locate Strava.Worker project
+      - name: Locate Strava worker
+        id: locate_strava
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -maxdepth 6 -name 'Strava.Worker.csproj' | head -n1)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Strava.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "Found: $csproj"
+          echo "csproj=$csproj" >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Strava)
+        run: dotnet restore "${{ steps.locate_strava.outputs.csproj }}"
+
+      - name: Build (Strava)
+        run: dotnet build "${{ steps.locate_strava.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Strava worker (writes to /out/strava)
+        working-directory: ${{ steps.locate_strava.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: dotnet run -c Release
+        
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with: { enablement: true }
