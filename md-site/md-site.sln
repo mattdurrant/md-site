@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hello.Worker", "..\workers\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MattSite.Core", "..\core\MattSite.Core\MattSite.Core.csproj", "{0D1056C1-556C-1C98-24B1-F43887EC1BDE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StravaAuthTool", "..\tools\StravaAuthTool\StravaAuthTool.csproj", "{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{0D1056C1-556C-1C98-24B1-F43887EC1BDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D1056C1-556C-1C98-24B1-F43887EC1BDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D1056C1-556C-1C98-24B1-F43887EC1BDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
