@@ -1,0 +1,46 @@
+name: Build and Publish Site
+
+on:
+  schedule: [{ cron: '17 6 * * *' }]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+
+      - run: dotnet restore
+      - run: dotnet build -c Release --no-restore
+
+      - name: Run Hello worker
+        env:
+          OUTPUT_DIR: out
+        run: dotnet run --project workers/Hello.Worker/Hello.Worker.csproj -c Release
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with: { enablement: true }
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+          name: github-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
