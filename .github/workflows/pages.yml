@@ -80,6 +80,35 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: dotnet run -c Release
+
+        - name: Locate Photos worker
+        id: locate_photos
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Photos.Worker.csproj' | head -n1)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Photos.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "Found: $csproj"
+          echo "csproj=$csproj" >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Photos)
+        run: dotnet restore "${{ steps.locate_photos.outputs.csproj }}"
+
+      - name: Build (Photos)
+        run: dotnet build "${{ steps.locate_photos.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Photos worker (writes to /out/photos)
+        working-directory: ${{ steps.locate_photos.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+          DROPBOX_APP_KEY:     ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET:  ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_PHOTOS_FOLDER: '/Public/Photos'
+        run: dotnet run -c Release
         
       - name: Configure Pages
         uses: actions/configure-pages@v5
