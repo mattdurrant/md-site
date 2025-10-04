@@ -113,6 +113,32 @@ jobs:
           DROPBOX_PHOTOS_FOLDER: '/Public/Photos'
         run: dotnet run -c Release
 
+      # ---------- Home ----------
+      - name: Locate Home worker
+        id: locate_home
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Home.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Home.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Home)
+        run: dotnet restore "${{ steps.locate_home.outputs.csproj }}"
+
+      - name: Build (Home)
+        run: dotnet build "${{ steps.locate_home.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Home worker (writes to /out/index.html)
+        working-directory: ${{ steps.locate_home.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+        run: dotnet run -c Release
+
+
       # ---------- Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
