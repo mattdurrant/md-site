@@ -138,6 +138,31 @@ jobs:
           OUTPUT_DIR: ${{ github.workspace }}/out
         run: dotnet run -c Release
 
+      # ---------- Goodreads ----------
+      - name: Locate Goodreads worker
+        id: locate_goodreads
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Goodreads.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Goodreads.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Goodreads)
+        run: dotnet restore "${{ steps.locate_goodreads.outputs.csproj }}"
+
+      - name: Build (Goodreads)
+        run: dotnet build "${{ steps.locate_goodreads.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Goodreads worker (writes to /out/books)
+        working-directory: ${{ steps.locate_goodreads.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+          GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}  # set this in repo Secrets
+        run: dotnet run -c Release
 
       # ---------- Publish ----------
       - name: Configure Pages
