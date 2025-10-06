@@ -22,7 +22,7 @@ public static class EbayRenderer
         sb.Append(@"<!doctype html><html lang=""en""><head><meta charset=""utf-8"">
 <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
 <title>").Append(Html(title)).Append(@"</title>
-<link rel=""stylesheet"" href=""https://www.mattdurrant.com/styles.css"">
+<link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/styles.css"">
 <link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/albums.css"">
 <style>
 .ebitem { display:flex; align-items:flex-start; gap:12px; }
