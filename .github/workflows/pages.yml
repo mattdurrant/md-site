@@ -164,6 +164,56 @@ jobs:
           GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}  # set this in repo Secrets
         run: dotnet run -c Release
 
+      # ---------- Albums (Spotify + eBay) ----------
+      - name: Locate Albums worker
+        id: locate_albums
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Albums.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Albums)
+        run: dotnet restore "${{ steps.locate_albums.outputs.csproj }}"
+
+      - name: Build (Albums)
+        run: dotnet build "${{ steps.locate_albums.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Albums worker (writes /albums and /ebay)
+        working-directory: ${{ steps.locate_albums.outputs.projdir }}
+        env:
+          OUTPUT_DIR:              ${{ github.workspace }}/out/albums
+          EBAY_OUTPUT_DIR:         ${{ github.workspace }}/out
+          # Spotify
+          SPOTIFY_CLIENT_ID:       ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          # Playlists / config
+          STAR_PLAYLISTS:          ${{ vars.STAR_PLAYLISTS }}
+          FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
+          EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
+          PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
+          TOP_N:                   ${{ vars.TOP_N }}
+          # Cache (if your code uses it)
+          CACHE_URL:               ${{ vars.CACHE_URL }}
+          CACHE_TTL_DAYS:          ${{ vars.CACHE_TTL_DAYS }}
+          # eBay
+          EBAY_CLIENT_ID:          ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET:      ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_MARKETPLACE:        ${{ vars.EBAY_MARKETPLACE }}
+          EBAY_DELIVERY_CC:        ${{ vars.EBAY_DELIVERY_CC }}
+          EBAY_MAX_PRICE_GBP:      ${{ vars.EBAY_MAX_PRICE_GBP }}
+          EBAY_PAGES_PER_QUERY:    ${{ vars.EBAY_PAGES_PER_QUERY }}
+          EBAY_LIMIT_PER_PAGE:     ${{ vars.EBAY_LIMIT_PER_PAGE }}
+          EBAY_QUERY_CONCURRENCY:  ${{ vars.EBAY_QUERY_CONCURRENCY }}
+          EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
+        run: dotnet run -c Release
+
+
       # ---------- Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
