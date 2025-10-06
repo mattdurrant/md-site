@@ -1,0 +1,101 @@
+table
+{
+    border-spacing: 0;
+}
+
+tr:nth-child(even) 
+{
+    background: #F8F8F8;
+}
+
+img.five-stars
+{
+    content:url(images/FiveStars.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "Five Stars";
+}
+
+img.four-stars
+{
+    content:url(images/FourStars.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "Four Stars";
+}
+
+img.three-stars
+{
+    content:url(images/ThreeStars.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "Three Stars";
+}
+
+img.two-stars
+{
+    content:url(images/TwoStars.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "Two Stars";
+}
+
+img.one-star
+{
+    content:url(images/OneStar.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "One Star";
+}
+
+.rank 
+{
+    margin-top: 5px; 
+    width: 50px; 
+    height: 50px; 
+    border-radius: 25px; 
+    font-size: 15px; 
+    color: #ffffff; 
+    line-height: 50px; 
+    text-align: center; 
+    background: #454545; 
+}
+
+.score 
+{
+    margin-top: 5px; 
+    width: 50px; 
+    height: 50px; 
+    border-radius: 25px; 
+    font-size: 15px; 
+    color: #ffffff; 
+    line-height: 50px; 
+    text-align: center; 
+    background: rgb(87, 173, 104); 
+}
+
+@media only screen and (max-width: 900px) 
+{
+    .time {
+        display: none;
+    }
+
+    .albumArt {
+        display: none;
+    }
+}
+
+td 
+{
+    text-align: left;
+    padding: 5px 5px 5px 5px;
+}
+
+iframe 
+{
+    margin-top: 10px;
+    margin-bottom: 10px;
+    vertical-align: middle;
+    height: 380px;
+    width: 100%;
+}

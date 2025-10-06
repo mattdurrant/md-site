@@ -1,0 +1,94 @@
+.site-nav{margin:8px 0;font-size:.95em}
+.site-nav a{text-decoration:none}
+
+body 
+{
+	margin: auto;
+	background: #ffffff; 
+	color: #454545; 
+	font: 1.9em Georgia, "Times New Roman", Times, serif; font-size: 19px; 
+	line-height: 1.8; 
+	text-shadow: 0 1px 0 #ffffff; 
+	max-width: 800px;
+}
+
+a 
+{
+	color: rgb(87, 173, 104);
+	background-image: linear-gradient(transparent calc(100% - 2px),rgb(87, 173, 104) 1px);
+	text-decoration: none;
+	background-size: 0% 100%;
+	background-position: 0%;
+	position: relative;
+	background-repeat: no-repeat;
+	
+}
+
+h1 a
+{
+	color: #454545;
+}
+
+td
+{
+	vertical-align: top;
+}
+
+.noWrap
+{
+	white-space: nowrap;
+}
+
+a:hover 
+{
+  	background-size: 100% 100%;
+	transition: all 0.5s;
+}
+
+h1,h2,h3,h4,h5,h6 
+{ 
+	font-family:"Myriad Pro", Helvetica, Arial, sans-serif; 	
+	font-weight:700; 
+	letter-spacing:-1px; color: #454545;
+}
+
+footer
+{
+    font-size: 12px;
+    text-align: right;
+}
+
+img
+{
+	max-height: 100%;
+	max-width: 100%;
+	vertical-align:middle;
+}
+
+time {
+	margin-right: 20px;
+}
+
+@media only screen and (max-width: 900px) {
+	.time{
+		display: none;
+	}
+
+	h1,h2,h3,h4,h5,h6 
+	{
+		text-align: center;
+	} 
+
+	body
+	{
+		margin: 5px 5px 5px 5px;
+	}
+}
+
+img.gold-medal 
+{
+    content:url(images/Pin.png);
+    vertical-align: "middle"; 
+    width: 32px;
+    alt: "Pinned";
+}
