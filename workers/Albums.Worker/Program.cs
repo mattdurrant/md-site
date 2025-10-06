@@ -16,10 +16,10 @@ internal class Program
         try
         {
             // --- read env vars (normalize + validate BEFORE building cfg) ---
-            var spotifyClientId = Env("SPOTIFY_CLIENT_ID");
-            var spotifyClientSecret = Env("SPOTIFY_CLIENT_SECRET");
-            var spotifyRefreshToken = Env("SPOTIFY_REFRESH_TOKEN");
-            var outputDir = Environment.GetEnvironmentVariable("OUTPUT_DIR") ?? "out";
+            var spotifyClientId = EnvReq("SPOTIFY_CLIENT_ID");
+            var spotifyClientSecret = EnvReq("SPOTIFY_CLIENT_SECRET");
+            var spotifyRefreshToken = EnvReq("SPOTIFY_REFRESH_TOKEN");
+            var outputDir = EnvReq("OUTPUT_DIR");
             var topN = EnvInt("TOP_N", 250);
 
             // Star playlists: parse, normalize, validate
@@ -348,7 +348,7 @@ internal class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("❌ " + ex.Message);
+            Console.Error.WriteLine("❌ " + ex.ToString());
             return 1;
         }
     }
@@ -415,6 +415,14 @@ internal class Program
         => MakeAlbumKey(a.Artists.FirstOrDefault() ?? "", a.AlbumName ?? "");
 
     // ---------- misc helpers ----------
+    static string? EnvOpt(string name) => Environment.GetEnvironmentVariable(name);
+    static string EnvReq(string name)
+    {
+        var v = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(v)) throw new InvalidOperationException($"Missing environment variable: {name}");
+        return v!;
+    }
+
     private static string Env(string name, bool required = true)
     {
         var v = Environment.GetEnvironmentVariable(name);
