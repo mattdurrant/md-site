@@ -214,6 +214,12 @@ jobs:
         run: dotnet run -c Release
 
 
+      - name: Copy static assets
+        run: |
+          mkdir -p "${{ github.workspace }}/out"
+          cp -v assets/styles.css  "${{ github.workspace }}/out/styles.css"
+          cp -v assets/albums.css  "${{ github.workspace }}/out/albums.css"
+
       # ---------- Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
