@@ -16,10 +16,11 @@ internal class Program
             var body = new StringBuilder()
                 .Append("<p>Welcome! Quick links:</p>")
                 .Append(@"<ul>
-  <li><a href=""/strava/"">Strava — Recent Activities</a></li>
-  <li><a href=""/photos/"">Photos — Dropbox Gallery</a></li>
-  <li><a href=""/hello/"">Hello (test page)</a></li>
-</ul>")
+                    <li><a href=""/strava/"">Strava — Recent Activities</a></li>
+                    <li><a href=""/photos/"">Photos — Dropbox Gallery</a></li>
+                    <li><a href=""/albums/"">Favourite Albums</a></li>
+                    <li><a href=""/ebay/"">Vinyl Deals (eBay)</a></li>
+                </ul>")
                 .ToString();
 
             var html = Html.Page("md-site — index", body);
