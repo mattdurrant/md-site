@@ -10,7 +10,7 @@ public static class Html
         sb.Append(@"<!doctype html><html lang=""en""><head><meta charset=""utf-8"">
 <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
 <title>").Append(E(title)).Append(@"</title>
-<link rel=""stylesheet"" href=""https://www.mattdurrant.com/styles.css"">
+<link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/styles.css"">
 <link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/albums.css"">
 <style>
   .site-nav{margin:8px 0;font-size:.95em}
