@@ -213,6 +213,41 @@ jobs:
           EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
         run: dotnet run -c Release
 
+      # ---------- Feed (homepage) ----------
+      - name: Locate Feed worker
+        id: locate_feed
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Feed.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Feed)
+        run: dotnet restore "${{ steps.locate_feed.outputs.csproj }}"
+
+      - name: Build (Feed)
+        run: dotnet build "${{ steps.locate_feed.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Feed worker (writes /out/index.html)
+        working-directory: ${{ steps.locate_feed.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+          # Strava (optional)
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          # Dropbox (optional)
+          DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_PHOTOS_FOLDER:  '/Public/Photos'
+          # Goodreads (optional)
+          GOODREADS_RSS_URL:    ${{ secrets.GOODREADS_RSS_URL }}
+        run: dotnet run -c Release
 
       - name: Copy static assets
         run: |
