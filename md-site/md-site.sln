@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Goodreads.Worker", "..\work
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Albums.Worker", "..\workers\Albums.Worker\Albums.Worker.csproj", "{A379E2C1-C1A8-425B-9E27-35E1DBCF6973}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Feed.Worker", "..\workers\Feed.Worker\Feed.Worker.csproj", "{D4A35D8B-7262-43CE-934D-CDE84371358A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{A379E2C1-C1A8-425B-9E27-35E1DBCF6973}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A379E2C1-C1A8-425B-9E27-35E1DBCF6973}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A379E2C1-C1A8-425B-9E27-35E1DBCF6973}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4A35D8B-7262-43CE-934D-CDE84371358A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4A35D8B-7262-43CE-934D-CDE84371358A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4A35D8B-7262-43CE-934D-CDE84371358A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4A35D8B-7262-43CE-934D-CDE84371358A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
