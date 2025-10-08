@@ -31,31 +31,6 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- Hello ----------
-      - name: Locate Hello worker
-        id: locate_hello
-        run: |
-          set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Hello.Worker.csproj' -print -quit)"
-          if [ -z "$csproj" ]; then
-            echo "Could not find Hello.Worker.csproj" >&2
-            exit 1
-          fi
-          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
-          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      - name: Restore (Hello)
-        run: dotnet restore "${{ steps.locate_hello.outputs.csproj }}"
-
-      - name: Build (Hello)
-        run: dotnet build "${{ steps.locate_hello.outputs.csproj }}" -c Release --no-restore
-
-      - name: Run Hello worker (writes to /out/hello)
-        working-directory: ${{ steps.locate_hello.outputs.projdir }}
-        env:
-          OUTPUT_DIR: ${{ github.workspace }}/out
-        run: dotnet run -c Release
-
       # ---------- Strava ----------
       - name: Locate Strava worker
         id: locate_strava
@@ -111,31 +86,6 @@ jobs:
           DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
           DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_PHOTOS_FOLDER: '/Public/Photos'
-        run: dotnet run -c Release
-
-      # ---------- Home ----------
-      - name: Locate Home worker
-        id: locate_home
-        run: |
-          set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Home.Worker.csproj' -print -quit)"
-          if [ -z "$csproj" ]; then
-            echo "Could not find Home.Worker.csproj" >&2
-            exit 1
-          fi
-          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
-          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      - name: Restore (Home)
-        run: dotnet restore "${{ steps.locate_home.outputs.csproj }}"
-
-      - name: Build (Home)
-        run: dotnet build "${{ steps.locate_home.outputs.csproj }}" -c Release --no-restore
-
-      - name: Run Home worker (writes to /out/index.html)
-        working-directory: ${{ steps.locate_home.outputs.projdir }}
-        env:
-          OUTPUT_DIR: ${{ github.workspace }}/out
         run: dotnet run -c Release
 
       # ---------- Goodreads ----------
@@ -225,13 +175,13 @@ jobs:
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
+      
       - name: Restore (Feed)
         run: dotnet restore "${{ steps.locate_feed.outputs.csproj }}"
-
+      
       - name: Build (Feed)
         run: dotnet build "${{ steps.locate_feed.outputs.csproj }}" -c Release --no-restore
-
+      
       - name: Run Feed worker (writes /out/index.html)
         working-directory: ${{ steps.locate_feed.outputs.projdir }}
         env:
@@ -248,6 +198,7 @@ jobs:
           # Goodreads (optional)
           GOODREADS_RSS_URL:    ${{ secrets.GOODREADS_RSS_URL }}
         run: dotnet run -c Release
+
 
       - name: Copy static assets
         run: |
