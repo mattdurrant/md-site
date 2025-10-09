@@ -7,6 +7,18 @@ internal class Program
 {
     private record FeedItem(DateTime When, string Html, string Source);
 
+    private const string IntroHtml = """
+        <header>
+            <h1><a href="https://www.mattdurrant.com">Matt Durrant</a></h1>
+        </header>
+        <a href="https://www.mattdurrant.com/strava/">I run around</a>, <a href="https://www.mattdurrant.com/books/">I read bad books</a>, <a href="https://www.mattdurrant.com/photos/">I take pictures on my phone</a> <a href="/phoneVideos">and some videos.</a> <br>
+        <a href="https://music.mattdurrant.com/">I sometimes try to make electronic music</a> <br>
+        <a href="https://www.mattdurrant.com/albums/">Here are my favourite albums</a> <a href="https://www.mattdurrant.com/ebay/"> (which I'm buying on vinyl).</a> <br>
+        <a href="https://wa.link/nsysbp">Contact me on WhatsApp.</a><a href="mailto:matt@mattdurrant.com"> I largely ignore email</a> <a href="https://www.facebook.com/mattdurrant">and Facebook.</a>
+        <br>
+        """;
+
+
     static async Task<int> Main()
     {
         try
@@ -110,6 +122,9 @@ $@"<div class=""card books"">
                 .ToList();
 
             var body = new StringBuilder();
+
+            body.Append(IntroHtml);
+
             body.Append(@"
 <style>
 .feed{display:flex;flex-direction:column;gap:14px}
