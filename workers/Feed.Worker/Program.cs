@@ -151,7 +151,8 @@ $@"<div class=""card books"">
 
             body.Append("</div>");
 
-            var pageHtml = Html.Page("Recent activity", body.ToString());
+            // No title, no nav on the homepage
+            var pageHtml = Html.Page(title: "", body: body.ToString(), navHtml: "", showTitle: false);
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), pageHtml, Encoding.UTF8);
 
             Console.WriteLine($"Feed: wrote {Path.Combine(outDir, "index.html")} ({feed.Count} items).");

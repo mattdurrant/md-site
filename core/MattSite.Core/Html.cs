@@ -4,6 +4,36 @@ namespace MattSite.Core;
 
 public static class Html
 {
+    public static string Page(string title, string body)
+    => Page(title, body, navHtml: null, showTitle: true);
+
+    // New overload: lets you pass custom nav (including empty) and hide the title
+    public static string Page(string title, string body, string? navHtml, bool showTitle)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<!doctype html><meta charset=\"utf-8\">");
+        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+        sb.AppendLine("<link rel=\"stylesheet\" href=\"/styles.css\">");
+        sb.AppendLine("<link rel=\"stylesheet\" href=\"/albums.css\">");
+        sb.AppendLine("<title>" + E(title) + "</title>");
+        sb.AppendLine("<main class=\"container\">");
+
+        if (showTitle && !string.IsNullOrWhiteSpace(title))
+            sb.AppendLine("<h1>" + E(title) + "</h1>");
+
+        // If navHtml is null, use the default site nav.
+        // If navHtml is an empty string, show nothing (suppressed).
+        if (navHtml is null) sb.Append(DefaultNav());
+        else sb.Append(navHtml); // can be ""
+
+        sb.Append(body);
+        sb.Append("</main>");
+        return sb.ToString();
+    }
+
+    // (keep your existing DefaultNav() and E(...) helpers)
+
+
     private static string DefaultNav() => @"
 <nav class=""top-nav"">
   <a href=""/"">Home</a>
