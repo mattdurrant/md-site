@@ -1,7 +1,7 @@
 ﻿using MattSite.Core;
 using System.Text;
 
-namespace Strava.Worker;
+namespace Goodreads.Worker;
 
 internal class Program
 {
@@ -10,60 +10,79 @@ internal class Program
         try
         {
             var outputBase = Environment.GetEnvironmentVariable("OUTPUT_DIR") ?? "out";
-            var outDir = Path.Combine(outputBase, "strava");
+            var outDir = Path.Combine(outputBase, "books");
             Directory.CreateDirectory(outDir);
 
-            var clientId = Env("STRAVA_CLIENT_ID");
-            var clientSecret = Env("STRAVA_CLIENT_SECRET");
-            var refreshToken = Env("STRAVA_REFRESH_TOKEN");
+            var rss = Env("GOODREADS_RSS_URL"); // full RSS URL to your shelf
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            Console.WriteLine("Goodreads: fetching RSS…");
+            var books = await GoodreadsRss.FetchAsync(http, rss);
 
-            Console.WriteLine("Strava: refreshing access token…");
-            var access = await StravaApi.GetAccessTokenAsync(http, clientId, clientSecret, refreshToken);
-
-            Console.WriteLine("Strava: fetching recent activities…");
-            var acts = await StravaApi.GetRecentActivitiesAsync(http, access, perPage: 50, page: 1);
-
-            // show the latest 20
-            var top = acts
-                .OrderByDescending(a => a.StartDateLocal)
-                .Take(20)
+            // Most recently read first (fall back to RSS pubDate)
+            var ordered = books
+                .OrderByDescending(b => b.UserReadAt ?? b.PubDate ?? DateTime.MinValue)
                 .ToList();
 
             var body = new StringBuilder();
-            body.Append(@"<ul style=""list-style:none;padding:0;margin:0"">");
-            foreach (var a in top)
+            body.AppendLine(@"<style>
+.list{display:block;margin:0;padding:0;list-style:none}
+.list li{padding:.35rem 0;border-bottom:1px solid #eee}
+.date{color:#666;margin-right:.5rem}
+.title{font-weight:600}
+.author{color:#444}
+.stars{margin-left:.5rem;white-space:nowrap}
+</style>");
+
+            body.AppendLine(@"<ul class=""list"">");
+
+            foreach (var b in ordered)
             {
-                var whenUk = StravaApi.ToUk(a.StartDateLocal);
-                var dateStr = whenUk.ToString("ddd dd MMM yyyy HH:mm 'UK'");
-                var km = a.Distance / 1000.0;
-                string dur(int s) => $"{s / 3600:00}:{(s % 3600) / 60:00}:{s % 60:00}";
+                var date = (b.UserReadAt ?? b.PubDate)?.ToString("yyyy-MM-dd") ?? "";
+                var title = Html.E(b.Title);
+                var author = Html.E(b.Author);
+                var stars = StarString(ParseRating(b.UserRating));
 
-                body.Append(@"<li style=""padding:10px 0;border-bottom:1px solid #ddd"">");
-                body.Append($@"<div><a href=""{StravaApi.ActivityUrl(a.Id)}"" target=""_blank"">{Html.E(a.Name)}</a></div>");
-                body.Append($@"<div class=""meta"">{Html.E(a.SportType)} · {km:0.0} km · {dur(a.MovingTime)} · {dateStr}</div>");
-                body.Append("</li>");
+                // If you want the title clickable, swap <span class="title"> for <a class="title" href="b.Link" ...>
+                body.AppendLine($@"  <li>
+    <span class=""date"">{date}:</span>
+    <span class=""title"">{title}</span> – <span class=""author"">{author}</span>
+    <span class=""stars"">{stars}</span>
+  </li>");
             }
-            body.Append("</ul>");
 
-            var html = Html.Page("Strava — Recent Activities", body.ToString());
+            body.AppendLine("</ul>");
+
+            var html = Html.Page("Books", body.ToString()); // <- Title changed to just "Books"
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
-            Console.WriteLine($"Strava: wrote {Path.Combine(outDir, "index.html")} ({top.Count} items).");
+            Console.WriteLine($"Goodreads: wrote {Path.Combine(outDir, "index.html")} ({ordered.Count} books).");
             return 0;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("❌ " + ex.Message);
+            Console.Error.WriteLine("❌ " + ex);
             return 1;
         }
     }
 
+    // Helpers
     private static string Env(string name)
     {
         var v = Environment.GetEnvironmentVariable(name);
-        if (string.IsNullOrWhiteSpace(v)) throw new InvalidOperationException($"Missing environment variable: {name}");
+        if (string.IsNullOrWhiteSpace(v))
+            throw new InvalidOperationException($"Missing environment variable: {name}");
         return v;
+    }
+
+    private static int ParseRating(string userRating)
+        => int.TryParse(userRating, out var r) ? Math.Clamp(r, 0, 5) : 0;
+
+    private static string StarString(int rating)
+    {
+        // ★ = filled, ☆ = empty — same visual style as albums
+        var sb = new StringBuilder(5);
+        for (int i = 0; i < 5; i++) sb.Append(i < rating ? '★' : '☆');
+        return sb.ToString();
     }
 }
