@@ -31,7 +31,92 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- Strava ----------
+      # ---------- Feed (homepage) ----------
+      - name: Locate Feed worker
+        id: locate_feed
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Feed.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Feed)
+        run: dotnet restore "${{ steps.locate_feed.outputs.csproj }}"
+
+      - name: Build (Feed)
+        run: dotnet build "${{ steps.locate_feed.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Feed worker (writes /out/index.html)
+        working-directory: ${{ steps.locate_feed.outputs.projdir }}
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/out
+          # Strava (optional)
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          # Dropbox (optional)
+          DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_PHOTOS_FOLDER:  '/Public/Photos'
+          # Goodreads (optional)
+          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
+        run: dotnet run -c Release
+
+      # ---------- Albums (Spotify + eBay) ----------
+      - name: Locate Albums worker
+        id: locate_albums
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find Albums.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (Albums)
+        run: dotnet restore "${{ steps.locate_albums.outputs.csproj }}"
+
+      - name: Build (Albums)
+        run: dotnet build "${{ steps.locate_albums.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run Albums worker (writes /albums and /ebay)
+        working-directory: ${{ steps.locate_albums.outputs.projdir }}
+        env:
+          # Output
+          OUTPUT_DIR:              ${{ github.workspace }}/out/albums
+          EBAY_OUTPUT_DIR:         ${{ github.workspace }}/out
+          # Spotify
+          SPOTIFY_CLIENT_ID:       ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          # Playlists / config
+          STAR_PLAYLISTS:          "${{ secrets.STAR_PLAYLISTS }}"   # or use vars if you prefer
+          FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
+          EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
+          PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
+          TOP_N:                   ${{ vars.TOP_N }}
+          # eBay search scope after purchased filtering
+          EBAY_ALBUM_LIMIT:        250
+          # eBay credentials / options
+          EBAY_CLIENT_ID:          ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET:      ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_MARKETPLACE:        ${{ vars.EBAY_MARKETPLACE }}
+          EBAY_DELIVERY_CC:        ${{ vars.EBAY_DELIVERY_CC }}
+          EBAY_MAX_PRICE_GBP:      ${{ vars.EBAY_MAX_PRICE_GBP }}
+          EBAY_PAGES_PER_QUERY:    ${{ vars.EBAY_PAGES_PER_QUERY }}
+          EBAY_LIMIT_PER_PAGE:     ${{ vars.EBAY_LIMIT_PER_PAGE }}
+          EBAY_QUERY_CONCURRENCY:  ${{ vars.EBAY_QUERY_CONCURRENCY }}
+          EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
+        run: dotnet run -c Release
+
+      # ---------- Strava (/strava) ----------
       - name: Locate Strava worker
         id: locate_strava
         run: |
@@ -55,11 +140,11 @@ jobs:
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
-          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAva_CLIENT_SECRET }} # <-- ensure secret name is correct in your repo
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: dotnet run -c Release
 
-      # ---------- Photos (Dropbox) ----------
+      # ---------- Photos (/photos) ----------
       - name: Locate Photos worker
         id: locate_photos
         run: |
@@ -88,17 +173,7 @@ jobs:
           DROPBOX_PHOTOS_FOLDER: '/Public/Photos'
         run: dotnet run -c Release
 
-      # ---------- Goodreads ----------
-      - name: Check Goodreads secret presence
-        run: |
-          if [ -z "${GOODREADS_RSS_URL:-}" ]; then
-            echo "GOODREADS_RSS_URL is NOT set"; exit 1;
-          else
-            echo "GOODREADS_RSS_URL is present ✅";
-          fi
-        env:
-          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
-      
+      # ---------- Goodreads (/books) ----------
       - name: Locate Goodreads worker
         id: locate_goodreads
         run: |
@@ -117,6 +192,16 @@ jobs:
       - name: Build (Goodreads)
         run: dotnet build "${{ steps.locate_goodreads.outputs.csproj }}" -c Release --no-restore
 
+      - name: Check Goodreads secret presence
+        run: |
+          if [ -z "${GOODREADS_RSS_URL:-}" ]; then
+            echo "GOODREADS_RSS_URL is NOT set"; exit 1;
+          else
+            echo "GOODREADS_RSS_URL is present ✅";
+          fi
+        env:
+          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
+
       - name: Run Goodreads worker (writes to /out/books)
         working-directory: ${{ steps.locate_goodreads.outputs.projdir }}
         env:
@@ -124,99 +209,14 @@ jobs:
           GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
         run: dotnet run -c Release
 
-      # ---------- Albums (Spotify + eBay) ----------
-      - name: Locate Albums worker
-        id: locate_albums
-        run: |
-          set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
-          if [ -z "$csproj" ]; then
-            echo "Could not find Albums.Worker.csproj" >&2
-            exit 1
-          fi
-          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
-          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      - name: Restore (Albums)
-        run: dotnet restore "${{ steps.locate_albums.outputs.csproj }}"
-
-      - name: Build (Albums)
-        run: dotnet build "${{ steps.locate_albums.outputs.csproj }}" -c Release --no-restore
-
-      - name: Run Albums worker (writes /albums and /ebay)
-        working-directory: ${{ steps.locate_albums.outputs.projdir }}
-        env:
-          OUTPUT_DIR:              ${{ github.workspace }}/out/albums
-          EBAY_OUTPUT_DIR:         ${{ github.workspace }}/out
-          # Spotify
-          SPOTIFY_CLIENT_ID:       ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
-          SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-          # Playlists / config
-          STAR_PLAYLISTS:          ${{ vars.STAR_PLAYLISTS }}
-          FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
-          EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
-          PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
-          TOP_N:                   ${{ vars.TOP_N }}
-          # Cache (if your code uses it)
-          CACHE_URL:               ${{ vars.CACHE_URL }}
-          CACHE_TTL_DAYS:          ${{ vars.CACHE_TTL_DAYS }}
-          # eBay
-          EBAY_CLIENT_ID:          ${{ secrets.EBAY_CLIENT_ID }}
-          EBAY_CLIENT_SECRET:      ${{ secrets.EBAY_CLIENT_SECRET }}
-          EBAY_MARKETPLACE:        ${{ vars.EBAY_MARKETPLACE }}
-          EBAY_DELIVERY_CC:        ${{ vars.EBAY_DELIVERY_CC }}
-          EBAY_MAX_PRICE_GBP:      ${{ vars.EBAY_MAX_PRICE_GBP }}
-          EBAY_PAGES_PER_QUERY:    ${{ vars.EBAY_PAGES_PER_QUERY }}
-          EBAY_LIMIT_PER_PAGE:     ${{ vars.EBAY_LIMIT_PER_PAGE }}
-          EBAY_QUERY_CONCURRENCY:  ${{ vars.EBAY_QUERY_CONCURRENCY }}
-          EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
-        run: dotnet run -c Release
-
-      # ---------- Feed (homepage) ----------
-      - name: Locate Feed worker
-        id: locate_feed
-        run: |
-          set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
-          if [ -z "$csproj" ]; then
-            echo "Could not find Feed.Worker.csproj" >&2
-            exit 1
-          fi
-          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
-          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-      
-      - name: Restore (Feed)
-        run: dotnet restore "${{ steps.locate_feed.outputs.csproj }}"
-      
-      - name: Build (Feed)
-        run: dotnet build "${{ steps.locate_feed.outputs.csproj }}" -c Release --no-restore
-      
-      - name: Run Feed worker (writes /out/index.html)
-        working-directory: ${{ steps.locate_feed.outputs.projdir }}
-        env:
-          OUTPUT_DIR: ${{ github.workspace }}/out
-          # Strava (optional)
-          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
-          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
-          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
-          # Dropbox (optional)
-          DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
-          DROPBOX_PHOTOS_FOLDER:  '/Public/Photos'
-          # Goodreads (optional)
-          GOODREADS_RSS_URL:    ${{ secrets.GOODREADS_RSS_URL }}
-        run: dotnet run -c Release
-
-
+      # ---------- Copy static assets (CSS, etc.) ----------
       - name: Copy static assets
         run: |
           mkdir -p "${{ github.workspace }}/out"
           cp -v assets/styles.css  "${{ github.workspace }}/out/styles.css"
           cp -v assets/albums.css  "${{ github.workspace }}/out/albums.css"
 
-      # ---------- Publish ----------
+      # ---------- Configure & Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
