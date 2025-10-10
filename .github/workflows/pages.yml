@@ -111,7 +111,7 @@ jobs:
         working-directory: ${{ steps.locate_goodreads.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}  # set this in repo Secrets
+          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
         run: dotnet run -c Release
 
       # ---------- Albums (Spotify + eBay) ----------
