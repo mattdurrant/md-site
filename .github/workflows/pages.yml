@@ -89,6 +89,16 @@ jobs:
         run: dotnet run -c Release
 
       # ---------- Goodreads ----------
+      - name: Check Goodreads secret presence
+        run: |
+          if [ -z "${GOODREADS_RSS_URL:-}" ]; then
+            echo "GOODREADS_RSS_URL is NOT set"; exit 1;
+          else
+            echo "GOODREADS_RSS_URL is present ✅";
+          fi
+        env:
+          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
+      
       - name: Locate Goodreads worker
         id: locate_goodreads
         run: |
