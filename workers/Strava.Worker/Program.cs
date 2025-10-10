@@ -1,7 +1,7 @@
 ﻿using MattSite.Core;
 using System.Text;
 
-namespace Goodreads.Worker;
+namespace Strava.Worker;
 
 internal class Program
 {
@@ -10,53 +10,68 @@ internal class Program
         try
         {
             var outputBase = Environment.GetEnvironmentVariable("OUTPUT_DIR") ?? "out";
-            var outDir = Path.Combine(outputBase, "books");
+            var outDir = Path.Combine(outputBase, "strava");
             Directory.CreateDirectory(outDir);
 
-            var rss = Env("GOODREADS_RSS_URL"); // full RSS URL to your shelf
+            var clientId = Env("STRAVA_CLIENT_ID");
+            var clientSecret = Env("STRAVA_CLIENT_SECRET");
+            var refreshToken = Env("STRAVA_REFRESH_TOKEN");
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-            Console.WriteLine("Goodreads: fetching RSS…");
-            var books = await GoodreadsRss.FetchAsync(http, rss);
 
-            // Most recently read first (fall back to RSS pubDate)
-            var ordered = books
-                .OrderByDescending(b => b.UserReadAt ?? b.PubDate ?? DateTime.MinValue)
-                .ToList();
+            Console.WriteLine("Strava: obtaining access token…");
+            var accessToken = await StravaApi.GetAccessTokenAsync(http, clientId, clientSecret, refreshToken);
 
+            Console.WriteLine("Strava: fetching recent activities…");
+            // pull a decent chunk; you can tweak if needed
+            var activities = await StravaApi.GetRecentActivitiesAsync(http, accessToken, perPage: 50, page: 1);
+
+            // --- Render ---
             var body = new StringBuilder();
-            body.AppendLine(@"<style>
-.list{display:block;margin:0;padding:0;list-style:none}
-.list li{padding:.35rem 0;border-bottom:1px solid #eee}
-.date{color:#666;margin-right:.5rem}
-.title{font-weight:600}
-.author{color:#444}
-.stars{margin-left:.5rem;white-space:nowrap}
-</style>");
+            body.Append(@"
+<style>
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:12px}
+.hdr{font-weight:600;margin-bottom:6px}
+.meta{color:#666;font-size:.92em}
+.badge{display:inline-block;padding:2px 6px;border-radius:999px;background:#f3f4f6;margin-left:6px;font-size:.82em}
+</style>
+<div class=""grid"">");
 
-            body.AppendLine(@"<ul class=""list"">");
-
-            foreach (var b in ordered)
+            foreach (var a in activities)
             {
-                var date = (b.UserReadAt ?? b.PubDate)?.ToString("yyyy-MM-dd") ?? "";
-                var title = Html.E(b.Title);
-                var author = Html.E(b.Author);
-                var stars = StarString(ParseRating(b.UserRating));
+                var whenLocal = StravaApi.ToUk(a.StartDateLocal);
+                var km = a.Distance / 1000.0;
+                string dur(int s) => $"{s / 3600:0}:{(s % 3600) / 60:00}:{s % 60:00}";
 
-                // If you want the title clickable, swap <span class="title"> for <a class="title" href="b.Link" ...>
-                body.AppendLine($@"  <li>
-    <span class=""date"">{date}:</span>
-    <span class=""title"">{title}</span> – <span class=""author"">{author}</span>
-    <span class=""stars"">{stars}</span>
-  </li>");
+                // Simple pace if it's a run: minutes per km
+                string pace = "";
+                if (a.SportType?.Equals("Run", StringComparison.OrdinalIgnoreCase) == true && a.MovingTime > 0 && km > 0)
+                {
+                    var secPerKm = a.MovingTime / km;
+                    var m = (int)(secPerKm / 60);
+                    var s = (int)(secPerKm % 60);
+                    pace = $" — {m}:{s:00}/km";
+                }
+
+                var url = StravaApi.ActivityUrl(a.Id);
+                var name = string.IsNullOrWhiteSpace(a.Name) ? a.SportType ?? "Activity" : a.Name;
+
+                body.Append($@"
+  <div class=""card"">
+    <div class=""hdr"">🏃 <a href=""{url}"" target=""_blank"" rel=""noopener"">{Html.E(name)}</a>
+      <span class=""badge"">{Html.E(a.SportType ?? "Activity")}</span>
+    </div>
+    <div class=""meta"">{km:0.0} km · {dur(a.MovingTime)}{pace} · {whenLocal:ddd dd MMM yyyy HH:mm}</div>
+  </div>");
             }
 
-            body.AppendLine("</ul>");
+            body.Append("</div>");
 
-            var html = Html.Page("Books", body.ToString()); // <- Title changed to just "Books"
+            var html = Html.Page("Running", body.ToString());
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
-            Console.WriteLine($"Goodreads: wrote {Path.Combine(outDir, "index.html")} ({ordered.Count} books).");
+            Console.WriteLine($"Strava: wrote {Path.Combine(outDir, "index.html")} ({activities.Count} activities).");
             return 0;
         }
         catch (Exception ex)
@@ -66,23 +81,11 @@ internal class Program
         }
     }
 
-    // Helpers
     private static string Env(string name)
     {
         var v = Environment.GetEnvironmentVariable(name);
         if (string.IsNullOrWhiteSpace(v))
             throw new InvalidOperationException($"Missing environment variable: {name}");
-        return v;
-    }
-
-    private static int ParseRating(string userRating)
-        => int.TryParse(userRating, out var r) ? Math.Clamp(r, 0, 5) : 0;
-
-    private static string StarString(int rating)
-    {
-        // ★ = filled, ☆ = empty — same visual style as albums
-        var sb = new StringBuilder(5);
-        for (int i = 0; i < 5; i++) sb.Append(i < rating ? '★' : '☆');
-        return sb.ToString();
+        return v!;
     }
 }
