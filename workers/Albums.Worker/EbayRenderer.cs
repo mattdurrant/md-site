@@ -14,14 +14,14 @@ public static class EbayRenderer
         DateTime? EndUtc
     );
 
-    public static string Render(IEnumerable<Row> items, string title, string? navHtml = null)
+    public static string Render(IEnumerable<Row> items)
     {
         var rows = items.ToList();
 
         var sb = new StringBuilder();
         sb.Append(@"<!doctype html><html lang=""en""><head><meta charset=""utf-8"">
 <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
-<title>").Append(Html(title)).Append(@"</title>
+<title>Vinyl To Buy</title>
 <link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/styles.css"">
 <link rel=""stylesheet"" type=""text/css"" href=""https://www.mattdurrant.com/albums.css"">
 <style>
@@ -36,10 +36,8 @@ public static class EbayRenderer
 
         sb.Append(@"<header>
           <div class=""site-nav""><a href=""https://www.mattdurrant.com/"">← Home</a></div>
-          <h1>").Append(Html(title)).Append("</h1>");
+          <h1>Vinyl To Buy</h1>");
 
-        if (!string.IsNullOrWhiteSpace(navHtml))
-            sb.Append(@"<nav class=""subnav"">").Append(navHtml).Append("</nav>");
         sb.Append("</header><main>");
 
         foreach (var r in rows)
@@ -108,7 +106,10 @@ public static class EbayRenderer
   });
 })();
 </script>");
-
+        
+        sb.Append(@"<p>
+          <a href=""/ebay/searched-albums.html"">View the list of albums searched.</a>
+        </p>");
         sb.Append("</body></html>");
         return sb.ToString();
     }

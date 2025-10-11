@@ -697,9 +697,7 @@ internal class Program
             // Write a minimal page so the pipeline succeeds and you can see it rendered
             var outDir0 = Path.Combine(outputDir, "ebay");
             Directory.CreateDirectory(outDir0);
-            var html0 = EbayRenderer.Render(Array.Empty<EbayRenderer.Row>(),
-                $"Vinyl deals ≤ £{maxTotalGbp:0} (eBay)",
-                navHtml: null);
+            var html0 = EbayRenderer.Render(Array.Empty<EbayRenderer.Row>());
             var outPath0 = Path.Combine(outDir0, "index.html");
             await File.WriteAllTextAsync(outPath0, html0, Encoding.UTF8);
             Console.WriteLine("eBay: no matches found — wrote an empty results page.");
@@ -731,17 +729,10 @@ internal class Program
         var outDir = Path.Combine(outputDir, "ebay");
         Directory.CreateDirectory(outDir);
 
-        // No back-link from main page; you'll link to /ebay/ elsewhere on the site.
-        var htmlTitle = $"Vinyl deals ≤ £{maxTotalGbp:0} (eBay)";
-
-        var headerNote = @"<p class=""top-note"" style=""margin:0 0 12px"">
-          <a href=""/ebay/searched-albums.html"">View the list of albums searched</a>
-        </p>";
-
-        var html = EbayRenderer.Render(rows, headerNote); // pass through
+        var html = EbayRenderer.Render(rows);
         var outPath = Path.Combine(outDir, "index.html");
         await File.WriteAllTextAsync(outPath, html, Encoding.UTF8);
-        
+
         Console.WriteLine($"eBay: wrote {outPath} ({rows.Count} rows).");
     }
 
