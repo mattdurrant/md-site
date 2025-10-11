@@ -12,6 +12,14 @@ body
 	max-width: 800px;
 }
 
+li:nth-child(even) {
+	background: #F8F8F8;
+}
+
+div.ebrow:nth-child(even) {
+	background: #F8F8F8;
+}
+
 a 
 {
 	color: rgb(87, 173, 104);

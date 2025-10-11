@@ -569,7 +569,7 @@ internal class Program
 
         sb.AppendLine("</ul>");
 
-        var page = Html.Page("Albums searched for vinyl", sb.ToString());
+        var page = Html.Page("Albums Searched For", sb.ToString());
         await File.WriteAllTextAsync(Path.Combine(ebayDir, "searched-albums.html"), page, Encoding.UTF8);
 
         Console.WriteLine($"eBay: wrote list of searched albums → {Path.Combine(ebayDir, "searched-albums.html")}");
