@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MattSite.Core;
-
+namespace Albums.Worker;
 
 // -------------------------
 // Spotify DTOs (playlist items, albums, artists, images)
