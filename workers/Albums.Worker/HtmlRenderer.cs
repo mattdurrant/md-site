@@ -1,6 +1,7 @@
-﻿using System.Text;
+﻿using MattSite.Core;
+using System.Text;
 
-namespace MattSite.Core;
+namespace Albums.Worker;
 
 public static class HtmlRenderer
 {

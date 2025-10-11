@@ -1,4 +1,4 @@
-﻿namespace MattSite.Core;
+﻿namespace Albums.Worker;
 
 public sealed class AppConfig
 {

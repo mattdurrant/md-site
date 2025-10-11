@@ -1,9 +1,10 @@
-﻿using System.Net.Http.Headers;
+﻿using MattSite.Core;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MattSite.Core;
+namespace Albums.Worker;
 
 public static class SpotifyApi
 {

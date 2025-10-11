@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace MattSite.Core;
+namespace Albums.Worker;
 
 public static class EbayApi
 {

@@ -1,8 +1,9 @@
-﻿using System.Globalization;
+﻿using MattSite.Core;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace MattSite.Core;
+namespace Albums.Worker;
 
 internal class Program
 {

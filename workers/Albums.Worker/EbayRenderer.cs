@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace MattSite.Core;
+namespace Albums.Worker;
 
 public static class EbayRenderer
 {
