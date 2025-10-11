@@ -713,6 +713,8 @@ internal class Program
         }
         return s;
     }
+    static int? EnvIntOpt(string name)
+        => int.TryParse(Environment.GetEnvironmentVariable(name), out var n) ? n : null;
 
     private static bool IsBase62(string id) => id.Length == 22 && id.All(char.IsLetterOrDigit);
 
