@@ -137,21 +137,12 @@ $@"<div class=""card books"">
 .card .info{flex:1}
 .top-note{margin:0 0 12px;color:#555}
 </style>
-<p class=""top-note"">Latest across the site (most recent first).</p>
 <div class=""feed"">");
 
-            if (feed.Count == 0)
-            {
-                body.Append("<p>No recent activity yet — check back soon.</p>");
-            }
-            else
-            {
-                foreach (var f in feed) body.Append(f.Html);
-            }
-
+            foreach (var f in feed) body.Append(f.Html);
+            
             body.Append("</div>");
 
-            // No title, no nav on the homepage
             var pageHtml = Html.Page(title: "", body: body.ToString(), navHtml: "", showTitle: false);
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), pageHtml, Encoding.UTF8);
 
