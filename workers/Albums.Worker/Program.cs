@@ -336,10 +336,21 @@ internal class Program
             // --- build the eBay page from the same Top-100 set (safe to skip if creds not set) ---
             var ebayOutBase = Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, "..");
 
-            await GenerateEbayPageAsync(
-                http,
-                ranked.Where(a => !purchasedAlbumIds.Contains(a.AlbumId) && !purchasedKeys.Contains(MakeAlbumKey(a))),
-                ebayOutBase);
+            var ebayLimit = EnvIntOpt("EBAY_ALBUM_LIMIT") ?? 250;
+
+            // remove purchased first, then take 250
+            var ebayAlbums = ranked
+                .Where(a => !purchasedAlbumIds.Contains(a.AlbumId)
+                         && !purchasedKeys.Contains(MakeAlbumKey(a)))
+                .Take(ebayLimit)
+                .ToList();
+
+            Console.WriteLine($"eBay: using {ebayAlbums.Count} albums (limit {ebayLimit}) after removing purchased.");
+
+            // Write the list of albums we searched for eBay (with Spotify links)
+            await WriteEbayAlbumSearchListAsync(ebayAlbums, ebayOutBase);
+
+            await GenerateEbayPageAsync(http, ebayAlbums, ebayOutBase);
 
             // --- persist cache for next run ---
             await SaveAlbumCacheAsync(albumCache, cfg.OutputDir);
@@ -531,6 +542,39 @@ internal class Program
         return null;
     }
 
+    static async Task WriteEbayAlbumSearchListAsync(IEnumerable<AlbumAggregate> albums, string outBaseDir)
+    {
+        var ebayDir = Path.Combine(outBaseDir, "ebay");
+        Directory.CreateDirectory(ebayDir);
+
+        var sb = new StringBuilder();
+        sb.AppendLine(@"<style>
+.list{display:block;margin:0;padding:0;list-style:none}
+.list li{padding:.35rem 0;border-bottom:1px solid #eee}
+.list a{text-decoration:none}
+</style>
+<ul class=""list"">");
+
+        foreach (var a in albums)
+        {
+            // If you already carry a Spotify album URL on your model, use it.
+            // Otherwise build it from the album id:
+            var albumUrl = string.IsNullOrWhiteSpace(a.Uri)
+                ? $"https://open.spotify.com/album/{a.AlbumId}"
+                : a.Uri;
+
+            var line = $@"  <li><a href=""{albumUrl}"" target=""_blank"" rel=""noopener"">{Html.E(a.AlbumName)} – {Html.E(a.Artists.First())}</a></li>";
+            sb.AppendLine(line);
+        }
+
+        sb.AppendLine("</ul>");
+
+        var page = Html.Page("Albums searched for vinyl", sb.ToString());
+        await File.WriteAllTextAsync(Path.Combine(ebayDir, "searched-albums.html"), page, Encoding.UTF8);
+
+        Console.WriteLine($"eBay: wrote list of searched albums → {Path.Combine(ebayDir, "searched-albums.html")}");
+    }
+
     // ---- very-lightweight album track cache persisted to out/cache/albums.json ----
     private sealed class CacheEntry
     {
@@ -689,10 +733,15 @@ internal class Program
 
         // No back-link from main page; you'll link to /ebay/ elsewhere on the site.
         var htmlTitle = $"Vinyl deals ≤ £{maxTotalGbp:0} (eBay)";
-        var html = EbayRenderer.Render(rows, htmlTitle, navHtml: null);
+
+        var headerNote = @"<p class=""top-note"" style=""margin:0 0 12px"">
+          <a href=""/ebay/searched-albums.html"">View the list of albums searched</a>
+        </p>";
+
+        var html = EbayRenderer.Render(rows, headerNote); // pass through
         var outPath = Path.Combine(outDir, "index.html");
         await File.WriteAllTextAsync(outPath, html, Encoding.UTF8);
-
+        
         Console.WriteLine($"eBay: wrote {outPath} ({rows.Count} rows).");
     }
 
