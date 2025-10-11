@@ -1,6 +1,27 @@
 .site-nav{margin:8px 0;font-size:.95em}
 .site-nav a{text-decoration:none}
 
+.container {
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 16px
+}
+
+.top-nav {
+	display: flex;
+	gap: .6rem;
+	flex-wrap: wrap;
+	margin: 6px 0 16px
+}
+
+.top-nav a {
+	text-decoration: none
+}
+
+.top-nav span {
+	color: #999
+}
+
 body 
 {
 	margin: auto;
