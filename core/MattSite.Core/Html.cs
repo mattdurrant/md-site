@@ -4,7 +4,8 @@ namespace MattSite.Core;
 
 public static class Html
 {
-    public static string Page(string title, string body) => Page(title, body, navHtml: null, showTitle: true);
+    public static string Page(string title, string body)
+    => Page(title, body, navHtml: null, showTitle: true);
 
     public static string BackHomeNav() => @"
 <nav class=""back-nav""><a href=""/"">← Home</a></nav>
@@ -20,14 +21,19 @@ public static class Html
         sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         sb.AppendLine("<link rel=\"stylesheet\" href=\"/styles.css\">");
         sb.AppendLine("<link rel=\"stylesheet\" href=\"/albums.css\">");
-        sb.AppendLine("<title>" + E(title) + "</title>");
+        sb.AppendLine("<title>" + E(string.IsNullOrWhiteSpace(title) ? " " : title) + "</title>");
         sb.AppendLine("<main class=\"container\">");
+
+        // NEW: top nav position
+        if (navHtml is not null && navHtml.Length > 0)
+            sb.Append(navHtml);
 
         if (showTitle && !string.IsNullOrWhiteSpace(title))
             sb.AppendLine("<h1>" + E(title) + "</h1>");
 
-        if (navHtml is null) sb.Append(DefaultNav());
-        else sb.Append(navHtml);
+        // Default nav only if navHtml is null (explicit empty string suppresses)
+        if (navHtml is null)
+            sb.Append(DefaultNav());
 
         sb.Append(body);
         sb.Append("</main>");
