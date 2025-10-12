@@ -1,7 +1,8 @@
 ﻿using MattSite.Core;
 using System.Text;
+using static MattSite.Core.Html;
 
-namespace Strava.Worker;
+namespace Fitness.Worker;
 
 internal class Program
 {
@@ -19,56 +20,54 @@ internal class Program
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 
-            Console.WriteLine("Strava: obtaining access token…");
+            Console.WriteLine("Fitness: obtaining Strava token…");
             var accessToken = await StravaApi.GetAccessTokenAsync(http, clientId, clientSecret, refreshToken);
 
-            Console.WriteLine("Strava: fetching recent activities…");
-            // pull a decent chunk; you can tweak if needed
+            Console.WriteLine("Fitness: fetching recent Strava activities…");
             var activities = await StravaApi.GetRecentActivitiesAsync(http, accessToken, perPage: 50, page: 1);
 
-            // --- Render ---
+            // ---- Render: simple two-line list per activity ----
             var body = new StringBuilder();
             body.Append(@"
 <style>
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-.card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:12px}
-.hdr{font-weight:600;margin-bottom:6px}
-.meta{color:#666;font-size:.92em}
-.badge{display:inline-block;padding:2px 6px;border-radius:999px;background:#f3f4f6;margin-left:6px;font-size:.82em}
+.fitlist{list-style:none;margin:0;padding:0}
+.fititem{padding:10px 0;border-bottom:1px solid #eee}
+.fitdate{color:#666;margin-right:.5rem;white-space:nowrap}
+.fitname a{text-decoration:none}
+.fitmeta{color:#555;font-size:.92em;margin-top:4px}
 </style>
-<div class=""grid"">");
+<ul class=""fitlist"">");
 
             foreach (var a in activities)
             {
                 var whenLocal = StravaApi.ToUk(a.StartDateLocal);
+                var date = UkDate.D(whenLocal);
                 var km = a.Distance / 1000.0;
-                string dur(int s) => $"{s / 3600:0}:{(s % 3600) / 60:00}:{s % 60:00}";
 
-                // Simple pace if it's a run: minutes per km
+                static string Dur(int s) => $"{s / 3600:0}:{(s % 3600) / 60:00}:{s % 60:00}";
+
                 string pace = "";
-                if (a.SportType?.Equals("Run", StringComparison.OrdinalIgnoreCase) == true && a.MovingTime > 0 && km > 0)
+                if ((a.SportType ?? "").Equals("Run", StringComparison.OrdinalIgnoreCase) && a.MovingTime > 0 && km > 0)
                 {
-                    var secPerKm = a.MovingTime / km;
-                    var m = (int)(secPerKm / 60);
-                    var s = (int)(secPerKm % 60);
-                    pace = $" — {m}:{s:00}/km";
+                    var spk = a.MovingTime / km; // seconds per km
+                    var m = (int)(spk / 60);
+                    var s = (int)(spk % 60);
+                    pace = $" · {m}:{s:00}/km";
                 }
 
                 var url = StravaApi.ActivityUrl(a.Id);
                 var name = string.IsNullOrWhiteSpace(a.Name) ? a.SportType ?? "Activity" : a.Name;
 
                 body.Append($@"
-  <div class=""card"">
-    <div class=""hdr"">🏃 <a href=""{url}"" target=""_blank"" rel=""noopener"">{Html.E(name)}</a>
-      <span class=""badge"">{Html.E(a.SportType ?? "Activity")}</span>
-    </div>
-    <div class=""meta"">{km:0.0} km · {dur(a.MovingTime)}{pace} · {whenLocal:ddd dd MMM yyyy HH:mm}</div>
-  </div>");
+  <li class=""fititem"">
+    <div class=""fitname""><span class=""fitdate"">{date}:</span><a href=""{url}"" target=""_blank"" rel=""noopener"">{Html.E(name)}</a></div>
+    <div class=""fitmeta"">{km:0.0} km · {Dur(a.MovingTime)}{pace}</div>
+  </li>");
             }
 
-            body.Append("</div>");
+            body.Append("</ul>");
 
-            var html = Html.Page("Running", body.ToString(), navHtml: Html.BackHomeNav(), showTitle: true);
+            var html = Html.Page("Fitness", body.ToString(), Html.BackHomeNav(), showTitle: true);
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
             Console.WriteLine($"Fitness: wrote {Path.Combine(outDir, "index.html")} ({activities.Count} activities).");
