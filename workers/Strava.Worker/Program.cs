@@ -10,7 +10,7 @@ internal class Program
         try
         {
             var outputBase = Environment.GetEnvironmentVariable("OUTPUT_DIR") ?? "out";
-            var outDir = Path.Combine(outputBase, "strava");
+            var outDir = Path.Combine(outputBase, "fitness");
             Directory.CreateDirectory(outDir);
 
             var clientId = Env("STRAVA_CLIENT_ID");
@@ -71,7 +71,7 @@ internal class Program
             var html = Html.Page("Running", body.ToString());
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
-            Console.WriteLine($"Strava: wrote {Path.Combine(outDir, "index.html")} ({activities.Count} activities).");
+            Console.WriteLine($"Fitness: wrote {Path.Combine(outDir, "index.html")} ({activities.Count} activities).");
             return 0;
         }
         catch (Exception ex)
