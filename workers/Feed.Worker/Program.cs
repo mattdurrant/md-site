@@ -47,7 +47,7 @@ internal class Program
                         var when = StravaApi.ToUk(a.StartDateLocal);
                         var url = StravaApi.ActivityUrl(a.Id);
                         var name = string.IsNullOrWhiteSpace(a.Name) ? (a.SportType ?? "Activity") : a.Name;
-                        items.Add(new FeedItem(when, url, $"Run: {Html.E(name)}", "run"));
+                        items.Add(new FeedItem(when, url, Html.E(name), "run"));
                     }
                 }
                 catch (Exception ex) { Console.WriteLine($"Running skipped: {ex.Message}"); }
@@ -65,13 +65,12 @@ internal class Program
 
                     foreach (var p in photos.OrderByDescending(x => x.ClientModified).Take(10))
                     {
-                        var name = string.IsNullOrWhiteSpace(p.Name) ? "Photo" : p.Name;
                         items.Add(new FeedItem(
                             When: p.ClientModified,
-                            Url: p.LinkUrl,
-                            LinkText: $"Photo: {Html.E(name)}",
+                            Url: p.LinkUrl,           // used for click-through on the image
+                            LinkText: "",             // no text after the date
                             Source: "photo",
-                            ThumbUrl: p.RawUrl  // show thumbnail below the text line
+                            ThumbUrl: p.RawUrl        // show thumbnail below the date
                         ));
                     }
                 }
@@ -88,20 +87,20 @@ internal class Program
                     {
                         var books = await GoodreadsRss.FetchAsync(http, rss!);
                         foreach (var b in books
-                            .OrderByDescending(x => x.UserReadAt ?? x.PubDate ?? DateTime.MinValue)
-                            .Take(10))
+                                 .OrderByDescending(x => x.UserReadAt ?? x.PubDate ?? DateTime.MinValue)
+                                 .Take(10))
                         {
                             var when = b.UserReadAt ?? b.PubDate ?? DateTime.MinValue;
                             var title = Html.E(b.Title);
                             var author = Html.E(b.Author);
-                            var txt = string.IsNullOrWhiteSpace(author) ? $"Book: {title}" : $"Book: {title} – {author}";
                             var link = string.IsNullOrWhiteSpace(b.Link) ? "#" : b.Link!;
-                            var stars = StarString(ParseRating(b.UserRating)); // ★★★★☆
+                            var label = string.IsNullOrWhiteSpace(author) ? title : $"{title} – {author}";
+                            var stars = StarString(ParseRating(b.UserRating));
 
                             items.Add(new FeedItem(
                                 When: when,
                                 Url: link,
-                                LinkText: txt,
+                                LinkText: label,       // no "Book:" prefix
                                 Source: "book",
                                 ThumbUrl: null,
                                 StarsHtml: $@"<span class=""stars"">{stars}</span>"
@@ -142,11 +141,24 @@ internal class Program
                 foreach (var f in feed)
                 {
                     var date = UkDate.D(f.When);
-                    body.Append($@"<tr><td class=""feedCell""><span class=""feedDate"">{date}:</span><a href=""{f.Url}"" target=""_blank"" rel=""noopener"">{f.LinkText}</a>");
-                    if (!string.IsNullOrWhiteSpace(f.StarsHtml))
-                        body.Append($" {f.StarsHtml}");
-                    if (!string.IsNullOrWhiteSpace(f.ThumbUrl))
-                        body.Append($@"<div class=""feedThumb""><a href=""{f.Url}"" target=""_blank"" rel=""noopener""><img src=""{f.ThumbUrl}"" alt=""""></a></div>");
+
+                    // start cell
+                    body.Append($@"<tr><td class=""feedCell""><span class=""feedDate"">{date}:</span>");
+
+                    // photos: no link text, just the thumbnail below
+                    if (f.Source == "photo")
+                    {
+                        if (!string.IsNullOrWhiteSpace(f.ThumbUrl))
+                            body.Append($@"<div class=""feedThumb""><a href=""{f.Url}"" target=""_blank"" rel=""noopener""><img src=""{f.ThumbUrl}"" alt=""""></a></div>");
+                    }
+                    else
+                    {
+                        // runs/books: show link text on same line
+                        body.Append($@" <a href=""{f.Url}"" target=""_blank"" rel=""noopener"">{f.LinkText}</a>");
+                        if (!string.IsNullOrWhiteSpace(f.StarsHtml))
+                            body.Append($" {f.StarsHtml}");
+                    }
+
                     body.Append("</td></tr>");
                 }
             }
