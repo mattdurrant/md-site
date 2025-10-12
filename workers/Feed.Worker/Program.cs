@@ -153,9 +153,11 @@ internal class Program
 
             body.Append("</tbody></table>");
 
-            // No title/nav on homepage
-            var pageHtml = Html.Page(title: "", body: body.ToString(), navHtml: "", showTitle: false);
+            // Add a visible build stamp so we can verify what's live
+            var stamp = $"<!-- FEED_BUILD {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}Z -->";
+            var pageHtml = Html.Page(title: "", body: stamp + body.ToString(), navHtml: "", showTitle: false);
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), pageHtml, Encoding.UTF8);
+
 
             Console.WriteLine($"Feed: wrote {Path.Combine(outDir, "index.html")} ({feed.Count} items).");
             return 0;
