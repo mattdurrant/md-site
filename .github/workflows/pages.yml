@@ -229,6 +229,9 @@ jobs:
             echo "----- index.html head ---"
             head -n 40 "${{ github.workspace }}/out/index.html" || true
 
+      - name: Write CNAME
+        run: echo "www.mattdurrant.com" > "${{ github.workspace }}/out/CNAME"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
