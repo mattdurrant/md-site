@@ -7,13 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MattSite.Core", "..\core\Ma
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StravaAuthTool", "..\tools\StravaAuthTool\StravaAuthTool.csproj", "{A6F5FDA8-AA55-48A9-8149-0C25E973BA0F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Strava.Worker", "..\workers\Strava.Worker\Strava.Worker.csproj", "{58F8C6F1-F568-4707-8B0C-CE61D56A82DD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fitness.Worker", "..\workers\Strava.Worker\Fitness.Worker.csproj", "{58F8C6F1-F568-4707-8B0C-CE61D56A82DD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImgurAuthTool", "..\tools\ImgurAuthTool\ImgurAuthTool.csproj", "{DF1FAF27-5865-421C-8872-8638E2838F43}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Photos.Worker", "..\workers\Photos.Worker\Photos.Worker.csproj", "{0FE7359E-D52E-4D4F-9ABC-30D0ACDB4FCD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Home.Worker", "..\workers\Home.Worker\Home.Worker.csproj", "{DBABF875-4060-4FB3-842D-2B485E29419F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Goodreads.Worker", "..\workers\Goodreads.Worker\Goodreads.Worker.csproj", "{13868881-9C27-42F7-8025-5F72B8BBBF66}"
 EndProject
@@ -25,6 +23,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Assets", "Assets", "{02EA68
 	ProjectSection(SolutionItems) = preProject
 		..\assets\albums.css = ..\assets\albums.css
 		..\assets\styles.css = ..\assets\styles.css
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{95A5A2BB-F570-4239-B0B2-C4D134AF960B}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\pages.yml = ..\.github\workflows\pages.yml
 	EndProjectSection
 EndProject
 Global
@@ -53,10 +56,6 @@ Global
 		{0FE7359E-D52E-4D4F-9ABC-30D0ACDB4FCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0FE7359E-D52E-4D4F-9ABC-30D0ACDB4FCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0FE7359E-D52E-4D4F-9ABC-30D0ACDB4FCD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DBABF875-4060-4FB3-842D-2B485E29419F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DBABF875-4060-4FB3-842D-2B485E29419F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DBABF875-4060-4FB3-842D-2B485E29419F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DBABF875-4060-4FB3-842D-2B485E29419F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{13868881-9C27-42F7-8025-5F72B8BBBF66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{13868881-9C27-42F7-8025-5F72B8BBBF66}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13868881-9C27-42F7-8025-5F72B8BBBF66}.Release|Any CPU.ActiveCfg = Release|Any CPU

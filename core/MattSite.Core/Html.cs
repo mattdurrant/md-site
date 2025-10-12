@@ -42,7 +42,7 @@ public static class Html
           <span>·</span>
           <a href=""/books/"">Books</a>
           <span>·</span>
-          <a href=""/strava/"">Strava</a>
+          <a href=""/fitness/"">Fitness</a>
         </nav>";
 
 

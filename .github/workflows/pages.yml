@@ -116,31 +116,31 @@ jobs:
           EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
         run: dotnet run -c Release
 
-      # ---------- Strava (/strava) ----------
-      - name: Locate Strava worker
-        id: locate_strava
+      # ---------- Fitness (/fitness) ----------
+      - name: Locate Fitness worker
+        id: locate_fitness
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Strava.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Fitness.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Strava.Worker.csproj" >&2
-            exit 1
+              echo "Could not find Fitness.Worker.csproj" >&2
+              exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
-      - name: Restore (Strava)
-        run: dotnet restore "${{ steps.locate_strava.outputs.csproj }}"
+      - name: Restore (Fitness)
+        run: dotnet restore "${{ steps.locate_fitness.outputs.csproj }}"
 
-      - name: Build (Strava)
-        run: dotnet build "${{ steps.locate_strava.outputs.csproj }}" -c Release --no-restore
+      - name: Build (Fitness)
+        run: dotnet build "${{ steps.locate_fitness.outputs.csproj }}" -c Release --no-restore
 
-      - name: Run Strava worker (writes to /out/strava)
-        working-directory: ${{ steps.locate_strava.outputs.projdir }}
+      - name: Run Fitness worker (writes to /out/fitness)
+        working-directory: ${{ steps.locate_fitness.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
-          STRAVA_CLIENT_SECRET: ${{ secrets.STRAva_CLIENT_SECRET }} # <-- ensure secret name is correct in your repo
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: dotnet run -c Release
 
