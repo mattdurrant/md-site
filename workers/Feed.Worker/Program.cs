@@ -6,7 +6,8 @@ namespace Feed.Worker;
 
 internal class Program
 {
-    private record FeedItem(DateTime When, string Url, string LinkText, string Source);
+    // Optional fields ThumbUrl and StarsHtml let us enhance the row when available
+    private record FeedItem(DateTime When, string Url, string LinkText, string Source, string? ThumbUrl = null, string? StarsHtml = null);
 
     private const string IntroHtml = """
 <header>
@@ -65,7 +66,13 @@ internal class Program
                     foreach (var p in photos.OrderByDescending(x => x.ClientModified).Take(10))
                     {
                         var name = string.IsNullOrWhiteSpace(p.Name) ? "Photo" : p.Name;
-                        items.Add(new FeedItem(p.ClientModified, p.LinkUrl, $"Photo: {Html.E(name)}", "photo"));
+                        items.Add(new FeedItem(
+                            When: p.ClientModified,
+                            Url: p.LinkUrl,
+                            LinkText: $"Photo: {Html.E(name)}",
+                            Source: "photo",
+                            ThumbUrl: p.RawUrl  // show thumbnail below the text line
+                        ));
                     }
                 }
                 catch (Exception ex) { Console.WriteLine($"Photos skipped: {ex.Message}"); }
@@ -89,7 +96,16 @@ internal class Program
                             var author = Html.E(b.Author);
                             var txt = string.IsNullOrWhiteSpace(author) ? $"Book: {title}" : $"Book: {title} – {author}";
                             var link = string.IsNullOrWhiteSpace(b.Link) ? "#" : b.Link!;
-                            items.Add(new FeedItem(when, link, txt, "book"));
+                            var stars = StarString(ParseRating(b.UserRating)); // ★★★★☆
+
+                            items.Add(new FeedItem(
+                                When: when,
+                                Url: link,
+                                LinkText: txt,
+                                Source: "book",
+                                ThumbUrl: null,
+                                StarsHtml: $@"<span class=""stars"">{stars}</span>"
+                            ));
                         }
                     }
                 }
@@ -103,23 +119,38 @@ internal class Program
                 .Take(10)
                 .ToList();
 
-            // Render as a table using the albums table style
+            // Render as table (albumsTable styles) + minimal extra for thumbs/stars
             var body = new StringBuilder();
             body.Append(IntroHtml);
             body.Append(@"
+<style>
+/* small additions for feed rows */
+.feedCell{padding:10px 8px}
+.feedDate{color:#666;margin-right:.5rem;white-space:nowrap}
+.feedThumb{margin-top:8px}
+.feedThumb img{max-width:100%;height:200px;object-fit:cover;border-radius:6px;display:block}
+.stars{margin-left:.5rem;white-space:nowrap}
+</style>
 <table class=""albumsTable""><tbody>");
+
             if (feed.Count == 0)
             {
-                body.Append(@"<tr><td>No recent activity yet — check back soon.</td></tr>");
+                body.Append(@"<tr><td class=""feedCell"">No recent activity yet — check back soon.</td></tr>");
             }
             else
             {
                 foreach (var f in feed)
                 {
                     var date = UkDate.D(f.When);
-                    body.Append($@"<tr><td>{date}: <a href=""{f.Url}"" target=""_blank"" rel=""noopener"">{f.LinkText}</a></td></tr>");
+                    body.Append($@"<tr><td class=""feedCell""><span class=""feedDate"">{date}:</span><a href=""{f.Url}"" target=""_blank"" rel=""noopener"">{f.LinkText}</a>");
+                    if (!string.IsNullOrWhiteSpace(f.StarsHtml))
+                        body.Append($" {f.StarsHtml}");
+                    if (!string.IsNullOrWhiteSpace(f.ThumbUrl))
+                        body.Append($@"<div class=""feedThumb""><a href=""{f.Url}"" target=""_blank"" rel=""noopener""><img src=""{f.ThumbUrl}"" alt=""""></a></div>");
+                    body.Append("</td></tr>");
                 }
             }
+
             body.Append("</tbody></table>");
 
             // No title/nav on homepage
@@ -134,6 +165,17 @@ internal class Program
             Console.Error.WriteLine("❌ " + ex);
             return 1;
         }
+    }
+
+    // Helpers
+    private static int ParseRating(string userRating)
+        => int.TryParse(userRating, out var r) ? Math.Clamp(r, 0, 5) : 0;
+
+    private static string StarString(int rating)
+    {
+        var sb = new StringBuilder(5);
+        for (int i = 0; i < 5; i++) sb.Append(i < rating ? '★' : '☆');
+        return sb.ToString();
     }
 
     private static async Task<string> StravaAccessToken(HttpClient http)
