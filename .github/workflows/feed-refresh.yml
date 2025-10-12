@@ -117,13 +117,17 @@ jobs:
         run: dotnet build "${{ steps.locate_goodreads.outputs.csproj }}" -c Release --no-restore
 
       - name: Run Goodreads (writes /out/books)
-        if: ${{ secrets.GOODREADS_RSS_URL != '' }}
         working-directory: ${{ steps.locate_goodreads.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
           GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
-        run: dotnet run -c Release
-
+        run: |
+          if [ -z "${GOODREADS_RSS_URL}" ]; then
+            echo "Skipping Goodreads: GOODREADS_RSS_URL is not set."
+            exit 0
+          fi
+          dotnet run -c Release
+            
       # CNAME + upload
       - name: Write CNAME
         run: echo "www.mattdurrant.com" > "${{ github.workspace }}/out/CNAME"
