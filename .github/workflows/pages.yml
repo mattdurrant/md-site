@@ -222,6 +222,13 @@ jobs:
         with:
           enablement: true
 
+      - name: Inspect out dir (sanity)
+        run: |
+            echo "----- tree of out ------"
+            find "${{ github.workspace }}/out" -maxdepth 2 -type f -print
+            echo "----- index.html head ---"
+            head -n 40 "${{ github.workspace }}/out/index.html" || true
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
