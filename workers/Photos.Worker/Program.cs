@@ -52,7 +52,8 @@ internal class Program
 
             body.Append("</div>");
 
-            var html = Html.Page("Photos", body.ToString());
+            var html = Html.Page("Photos", body.ToString(), navHtml: Html.BackHomeNav(), showTitle: true);
+
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
             Console.WriteLine($"Photos: wrote {Path.Combine(outDir, "index.html")} ({rows.Count} images).");

@@ -68,7 +68,7 @@ internal class Program
 
             body.Append("</div>");
 
-            var html = Html.Page("Running", body.ToString());
+            var html = Html.Page("Running", body.ToString(), navHtml: Html.BackHomeNav(), showTitle: true);
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
             Console.WriteLine($"Fitness: wrote {Path.Combine(outDir, "index.html")} ({activities.Count} activities).");

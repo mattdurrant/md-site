@@ -6,6 +6,13 @@ public static class Html
 {
     public static string Page(string title, string body) => Page(title, body, navHtml: null, showTitle: true);
 
+    public static string BackHomeNav() => @"
+<nav class=""back-nav""><a href=""/"">← Home</a></nav>
+<style>
+.back-nav{margin:6px 0 16px}
+.back-nav a{text-decoration:none}
+</style>";
+
     public static string Page(string title, string body, string? navHtml, bool showTitle)
     {
         var sb = new StringBuilder();

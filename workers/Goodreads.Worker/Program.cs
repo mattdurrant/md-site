@@ -53,7 +53,8 @@ internal class Program
 
             body.AppendLine("</ul>");
 
-            var html = Html.Page("Books", body.ToString()); // <- Title changed to just "Books"
+            var html = Html.Page("Books", body.ToString(), navHtml: Html.BackHomeNav(), showTitle: true);
+
             await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
 
             Console.WriteLine($"Goodreads: wrote {Path.Combine(outDir, "index.html")} ({ordered.Count} books).");
