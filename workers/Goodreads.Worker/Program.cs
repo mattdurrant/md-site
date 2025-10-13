@@ -1,5 +1,6 @@
 ﻿using MattSite.Core;
 using System.Text;
+using static MattSite.Core.Html;
 
 namespace Goodreads.Worker;
 
@@ -35,20 +36,24 @@ internal class Program
 </style>");
 
             body.AppendLine(@"<ul class=""list"">");
-
-            foreach (var b in ordered)
+                        
+            foreach (var b in books
+                .OrderByDescending(x => x.UserReadAt ?? x.PubDate ?? DateTime.MinValue))
             {
-                var date = (b.UserReadAt ?? b.PubDate)?.ToString("yyyy-MM-dd") ?? "";
+                var when = b.UserReadAt ?? b.PubDate ?? DateTime.MinValue;
+                var date = UkDate.D(when);
                 var title = Html.E(b.Title);
                 var author = Html.E(b.Author);
-                var stars = StarString(ParseRating(b.UserRating));
+                var link = string.IsNullOrWhiteSpace(b.Link) ? "#" : b.Link!;
+                var stars = StarString(ParseRating(b.UserRating)); // your existing star helper
 
-                // If you want the title clickable, swap <span class="title"> for <a class="title" href="b.Link" ...>
-                body.AppendLine($@"  <li>
-    <span class=""date"">{date}:</span>
-    <span class=""title"">{title}</span> – <span class=""author"">{author}</span>
-    <span class=""stars"">{stars}</span>
-  </li>");
+                body.AppendLine($@"
+<li>
+  <span class=""date"">{date}:</span>
+  <a href=""{link}"" target=""_blank"" rel=""noopener"">{title}</a>
+  {(string.IsNullOrWhiteSpace(author) ? "" : $" – {author}")}
+  <span class=""stars"">{stars}</span>
+</li>");
             }
 
             body.AppendLine("</ul>");
