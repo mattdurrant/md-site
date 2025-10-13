@@ -8,9 +8,8 @@ namespace Albums.Worker;
 internal class Program
 {
     // ----- Hard-coded boosted weights: index by star value [0..5] -----
-    // 5★=1.20, 4★=1.00, 3★=0.60, 2★=0.30, 1★=0.10
+    // 5★=1.20, 4★=1.00, 3★=0.70, 2★=0.30, 1★=0.10
     private static readonly double[] StarWeights = { 0.0, 0.10, 0.30, 0.7, 1.00, 1.20 };
- 
 
     static async Task<int> Main()
     {
@@ -59,7 +58,6 @@ internal class Program
             };
 
             Directory.CreateDirectory(cfg.OutputDir);
-
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(100) };
             var token = await SpotifyApi.GetAccessTokenAsync(http, cfg.SpotifyClientId, cfg.SpotifyClientSecret, cfg.SpotifyRefreshToken);
@@ -199,13 +197,13 @@ internal class Program
                 agg.Denominator = Math.Max(0, total - excludedOnAlbum);
             }
 
-            // --- rank all eligible by RawPercent (unclipped), then tiebreakers ---
+            // --- rank ALL eligible (for reuse), then slice for the main page ---
             var allEligible = albums.Values.Where(a => a.Denominator > 0).ToList();
-            var ranked = RankOrder(allEligible).ToList();
-            var totalEligible = ranked.Count;
-            ranked = ranked.Take(topN).ToList();
+            var rankedAll = RankOrder(allEligible).ToList();         // full ranked list
+            var totalEligible = rankedAll.Count;
+            var ranked = rankedAll.Take(topN).ToList();               // main page slice
 
-            // --- build Top 10 per year (from all eligible, not just Top N) ---
+            // --- build Top 10 per year (from ALL eligible, not just Top N) ---
             var byYear = allEligible
                 .Where(a => a.ReleaseYear.HasValue)
                 .GroupBy(a => a.ReleaseYear!.Value)
@@ -333,24 +331,30 @@ internal class Program
                 await File.WriteAllTextAsync(yPath, yHtml, Encoding.UTF8);
             }
 
-            // --- build the eBay page from the same Top-100 set (safe to skip if creds not set) ---
+            // ===================== eBay: remove purchased THEN take 250 =====================
             var ebayOutBase = Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, "..");
-
             var ebayLimit = EnvIntOpt("EBAY_ALBUM_LIMIT") ?? 250;
 
-            // remove purchased first, then take 250
-            var ebayAlbums = ranked
+            // Build from the full ranked list (all eligible), remove purchased by ID OR key, then cap to limit
+            var candidates = rankedAll
                 .Where(a => !purchasedAlbumIds.Contains(a.AlbumId)
                          && !purchasedKeys.Contains(MakeAlbumKey(a)))
+                .ToList();
+
+            Console.WriteLine($"eBay: candidate albums after removing purchased: {candidates.Count}");
+            Console.WriteLine($"eBay: configured post-filter limit: {ebayLimit}");
+
+            var ebayAlbums = candidates
                 .Take(ebayLimit)
                 .ToList();
 
-            Console.WriteLine($"eBay: using {ebayAlbums.Count} albums (limit {ebayLimit}) after removing purchased.");
+            Console.WriteLine($"eBay: querying {ebayAlbums.Count} album terms (should be ≤ {ebayLimit}).");
 
             // Write the list of albums we searched for eBay (with Spotify links)
             await WriteEbayAlbumSearchListAsync(ebayAlbums, ebayOutBase);
 
             await GenerateEbayPageAsync(http, ebayAlbums, ebayOutBase);
+            // ==============================================================================
 
             // --- persist cache for next run ---
             await SaveAlbumCacheAsync(albumCache, cfg.OutputDir);
@@ -382,6 +386,7 @@ internal class Program
         var allTimeHref = isMainPage ? "./" : "../";
 
         var sb = new StringBuilder();
+        sb.Append($@"<div class=""blurb""><a href=""/"">← Home</a></div>");
         sb.Append($@"<a href=""{allTimeHref}"">All Time</a>");
         for (int y = end; y >= start; y--)
         {
@@ -519,7 +524,6 @@ internal class Program
 
         return false;
     }
-
 
     private static string OpenTrackUrl(string uri)
     {
