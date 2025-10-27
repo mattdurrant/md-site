@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 using TheSequelCommittee.Worker;
 
-namespace MovieDropOff;
+namespace TheSequelCommittee.Worker;
 
 public static class HtmlWriter
 {
@@ -26,7 +26,7 @@ public static class HtmlWriter
         string ratingSource,
         string posterBaseUrl = PosterBaseDefault)
     {
-        // Output folder
+        // >>> Output folder updated <<<
         var outDir = Path.Combine("out", "thesequelcommittee");
         Directory.CreateDirectory(outDir);
 
@@ -175,7 +175,7 @@ td.title{white-space:normal}
               .Append(Utils.CsvEscape(VerdictLabel(verdict)))
               .Append("</span></div>");
 
-            // Full collection (no heading), release order, colour if >=70 (after first-film rule), else grey
+            // --- Whole collection (no heading), release order, colour if >=70 (after first-film rule), else grey ---
             if (released.Count > 0)
             {
                 sb.Append("<div class='grid'>");
@@ -264,22 +264,13 @@ td.title{white-space:normal}
         accepted = accepted.OrderBy(x => SimplifyName(x.Name)).ToList();
         denied = denied.OrderBy(x => SimplifyName(x.Name)).ToList();
 
-        int total = franchises.Count;
-        int ok = accepted.Count;
-        double rate = total > 0 ? (ok * 100.0) / total : 0.0;
-        string rateStr = rate.ToString("0.0", CultureInfo.InvariantCulture);
-
         var idx = new StringBuilder();
         idx.Append("<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
         idx.Append("<title>The Sequel Committee</title><style>").Append(Css).Append("</style><body><div class='wrap'>");
 
-        // Title + count + approval rate
+        // Title + count
         idx.Append("<h1>The Sequel Committee</h1>");
-        idx.Append("<p class='kicker'>")
-           .Append(total)
-           .Append(" collections · Committee approval rate: ")
-           .Append(rateStr)
-           .Append("%</p>");
+        idx.Append("<p class='kicker'>").Append(franchises.Count).Append(" collections</p>");
 
         // Accepted
         idx.Append("<div class='groupTitle'>").Append(ICON_ACCEPT).Append(" Accepted by the Committee</div>");
@@ -299,136 +290,136 @@ td.title{white-space:normal}
         foreach (var f in denied)
         {
             var nm = Utils.CsvEscape(SimplifyName(f.Name));
-            idx.Append("<a class='box' href='./").Append(f.CollectionId).Append(".html" >< div class='ttl'>").Append(nm).Append("</div></a>");
+            idx.Append("<a class='box' href='./").Append(f.CollectionId).Append(".html'><div class='ttl'>").Append(nm).Append("</div></a>");
         }
-idx.Append("</div>");
+        idx.Append("</div>");
 
         // Last updated footer
         idx.Append("<div class='footer-note'>Last updated ").Append(lastUpdatedUk).Append("</div>");
 
-idx.Append("</div></body></html>");
+        idx.Append("</div></body></html>");
         await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), idx.ToString());
     }
 
     // ---------- Approved / Denied (STRICT ≥70 with conditional first-film +2%) ----------
     private enum Verdict { Accepted, Denied }
 
-private static Verdict EvaluateAcceptedDenied(List<MovieJoined> released, string ratingSource)
-{
-    if (released == null || released.Count == 0) return Verdict.Denied;
-
-    var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
-
-    // First-film +2% ONLY if there are NO other ≥70 films
-    bool anyOtherGreat = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
-    var adj = baseScores.ToArray();
-    if (!anyOtherGreat && adj.Length > 0 && adj[0].HasValue)
+    private static Verdict EvaluateAcceptedDenied(List<MovieJoined> released, string ratingSource)
     {
-        double boosted = adj[0]!.Value + 2.0;
-        if (boosted > 100.0) boosted = 100.0;
-        adj[0] = boosted;
+        if (released == null || released.Count == 0) return Verdict.Denied;
+
+        var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
+
+        // First-film +2% ONLY if there are NO other ≥70 films
+        bool anyOtherGreat = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
+        var adj = baseScores.ToArray();
+        if (!anyOtherGreat && adj.Length > 0 && adj[0].HasValue)
+        {
+            double boosted = adj[0]!.Value + 2.0;
+            if (boosted > 100.0) boosted = 100.0;
+            adj[0] = boosted;
+        }
+
+        bool allGreatOrClassic = adj.All(s => s.HasValue && s.Value >= GREAT);
+        return allGreatOrClassic ? Verdict.Accepted : Verdict.Denied;
     }
 
-    bool allGreatOrClassic = adj.All(s => s.HasValue && s.Value >= GREAT);
-    return allGreatOrClassic ? Verdict.Accepted : Verdict.Denied;
-}
+    private static string VerdictIcon(Verdict v) => v == Verdict.Accepted ? ICON_ACCEPT : ICON_DENY;
+    private static string VerdictLabel(Verdict v) => v == Verdict.Accepted ? "Approved by the Committee" : "Denied by the Committee";
 
-private static string VerdictIcon(Verdict v) => v == Verdict.Accepted ? ICON_ACCEPT : ICON_DENY;
-private static string VerdictLabel(Verdict v) => v == Verdict.Accepted ? "Approved by the Committee" : "Denied by the Committee";
-
-// ---------- Helpers ----------
-private static string SimplifyName(string name)
-{
-    if (string.IsNullOrWhiteSpace(name)) return name;
-    var t = name.Trim();
-    if (t.EndsWith(" Collection", StringComparison.OrdinalIgnoreCase))
-        return t[..^" Collection".Length].TrimEnd();
-    return t;
-}
-
-// Raw score from chosen source (no boost)
-private static double? GetBaseScore(MovieJoined m, string src)
-{
-    if (src == "rt_only") return m.RtCriticPct;
-    if (src == "rt_audience_only") return m.RtAudiencePct;
-    if (src == "rt") return m.RtCriticPct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
-    if (src == "rt_audience") return m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
-    return m.RtCriticPct ?? m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
-}
-
-private static DateTime GetUkNow()
-{
-    try
+    // ---------- Helpers ----------
+    private static string SimplifyName(string name)
     {
-        var tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
-        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        if (string.IsNullOrWhiteSpace(name)) return name;
+        var t = name.Trim();
+        if (t.EndsWith(" Collection", StringComparison.OrdinalIgnoreCase))
+            return t[..^" Collection".Length].TrimEnd();
+        return t;
     }
-    catch
+
+    // Raw score from chosen source (no boost)
+    private static double? GetBaseScore(MovieJoined m, string src)
+    {
+        if (src == "rt_only") return m.RtCriticPct;
+        if (src == "rt_audience_only") return m.RtAudiencePct;
+        if (src == "rt") return m.RtCriticPct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
+        if (src == "rt_audience") return m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
+        return m.RtCriticPct ?? m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
+    }
+
+    private static DateTime GetUkNow()
     {
         try
         {
-            var tz = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
         }
         catch
         {
-            return DateTime.UtcNow;
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            }
+            catch
+            {
+                return DateTime.UtcNow;
+            }
         }
     }
-}
 
-private static void EmitCard(
-    StringBuilder sb,
-    MovieJoined m,
-    int seriesIndex,
-    bool isBest,
-    bool inStreak,
-    bool greyOut,
-    bool tiny,
-    string posterBaseUrl)
-{
-    string link = TmdbMovieUrl(m.MovieTmdbId);
-    string posterUrl = string.IsNullOrWhiteSpace(m.PosterPath)
-        ? ""
-        : (m.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? m.PosterPath!
-            : $"{posterBaseUrl}{m.PosterPath}");
-    string ukDate = m.ReleaseDate?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "";
+    private static void EmitCard(
+        StringBuilder sb,
+        MovieJoined m,
+        int seriesIndex,
+        bool isBest,
+        bool inStreak,
+        bool greyOut,
+        bool tiny,
+        string posterBaseUrl)
+    {
+        string link = TmdbMovieUrl(m.MovieTmdbId);
+        string posterUrl = string.IsNullOrWhiteSpace(m.PosterPath)
+            ? ""
+            : (m.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? m.PosterPath!
+                : $"{posterBaseUrl}{m.PosterPath}");
+        string ukDate = m.ReleaseDate?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "";
 
-    var cls = new List<string> { "card" };
-    if (greyOut) cls.Add("out");
+        var cls = new List<string> { "card" };
+        if (greyOut) cls.Add("out");
 
-    sb.Append("<article class='").Append(string.Join(" ", cls)).Append("'>");
-    if (isBest) sb.Append("<div class='crown'>👑</div>");
-    sb.Append("<div class='idx'>#").Append(seriesIndex + 1).Append("</div>");
-    sb.Append("<a href='").Append(link).Append("' target='_blank' rel='noopener noreferrer' class='poster'>");
-    if (!string.IsNullOrWhiteSpace(posterUrl))
-        sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(m.Title)).Append("' src='").Append(posterUrl).Append("'>");
-    else
-        sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
-    sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(m.Title)).Append("</div>")
-      .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
-}
+        sb.Append("<article class='").Append(string.Join(" ", cls)).Append("'>");
+        if (isBest) sb.Append("<div class='crown'>👑</div>");
+        sb.Append("<div class='idx'>#").Append(seriesIndex + 1).Append("</div>");
+        sb.Append("<a href='").Append(link).Append("' target='_blank' rel='noopener noreferrer' class='poster'>");
+        if (!string.IsNullOrWhiteSpace(posterUrl))
+            sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(m.Title)).Append("' src='").Append(posterUrl).Append("'>");
+        else
+            sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
+        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(m.Title)).Append("</div>")
+          .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
+    }
 
-private static void EmitCardUpcoming(StringBuilder sb, MemberRow u, string posterBaseUrl)
-{
-    string link = TmdbMovieUrl(u.MovieTmdbId);
-    string posterUrl = string.IsNullOrWhiteSpace(u.PosterPath)
-        ? ""
-        : (u.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? u.PosterPath!
-            : $"{posterBaseUrl}{u.PosterPath}");
-    string ukDate = Utils.ParseDate(u.ReleaseDate)?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "TBC";
+    private static void EmitCardUpcoming(StringBuilder sb, MemberRow u, string posterBaseUrl)
+    {
+        string link = TmdbMovieUrl(u.MovieTmdbId);
+        string posterUrl = string.IsNullOrWhiteSpace(u.PosterPath)
+            ? ""
+            : (u.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? u.PosterPath!
+                : $"{posterBaseUrl}{u.PosterPath}");
+        string ukDate = Utils.ParseDate(u.ReleaseDate)?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "TBC";
 
-    sb.Append("<article class='card'><div class='badgeUp'>Upcoming</div>");
-    sb.Append("<a href='").Append(link).Append("' target='_blank' rel='noopener noreferrer' class='poster'>");
-    if (!string.IsNullOrWhiteSpace(posterUrl))
-        sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(u.Title)).Append("' src='").Append(posterUrl).Append("'>");
-    else
-        sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
-    sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(u.Title)).Append("</div>")
-      .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
-}
+        sb.Append("<article class='card'><div class='badgeUp'>Upcoming</div>");
+        sb.Append("<a href='").Append(link).Append("' target='_blank' rel='noopener noreferrer' class='poster'>");
+        if (!string.IsNullOrWhiteSpace(posterUrl))
+            sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(u.Title)).Append("' src='").Append(posterUrl).Append("'>");
+        else
+            sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
+        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(u.Title)).Append("</div>")
+          .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
+    }
 
-private static string TmdbMovieUrl(int id) => $"https://www.themoviedb.org/movie/{id}";
+    private static string TmdbMovieUrl(int id) => $"https://www.themoviedb.org/movie/{id}";
 }
