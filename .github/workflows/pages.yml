@@ -32,31 +32,34 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- SequelCommittee (fail fast) ----------
-      - name: Locate SequelCommittee worker
+     # ---------- TheSequelCommittee (fail fast) ----------
+      - name: Locate TheSequelCommittee worker
         id: locate_sequel
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'SequelCommittee.Worker.csproj' -print -quit || true)"
+          # exact filename first
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -name 'TheSequelCommittee.Worker.csproj' -print -quit || true)"
+          # fallbacks (in case you tweak the name later)
+          if [ -z "$csproj" ]; then csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*Worker*.csproj' -print -quit || true)"; fi
           if [ -z "$csproj" ]; then
-            echo "Could not find SequelCommittee.Worker.csproj"; exit 1
+            echo "Could not find TheSequelCommittee.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      - name: Restore (SequelCommittee)
+        
+      - name: Restore (TheSequelCommittee)
         shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
-
-      - name: Build (SequelCommittee)
+      
+      - name: Build (TheSequelCommittee)
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
-
-      - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
+      
+      - name: Run TheSequelCommittee worker (writes to /out/thesequelcommittee/html)
         shell: bash
         env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}    # ✅ uncommented
         run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Feed (homepage) ----------
