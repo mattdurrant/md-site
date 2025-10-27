@@ -28,7 +28,7 @@ public static class HtmlWriter
         string ratingSource,
         string posterBaseUrl = PosterBaseDefault)
     {
-        var outDir = Path.Combine("out", "sequelcommittee", "html");
+        var outDir = Path.Combine("out", "thesequelcommittee", "html");
         Directory.CreateDirectory(outDir);
 
         // Prepare lookups
@@ -44,7 +44,7 @@ public static class HtmlWriter
 
         // Load unreleased (upcoming) from franchise_members.csv
         Dictionary<int, List<MemberRow>> upcomingByCid = new();
-        var membersCsvPath = Path.Combine("out", "sequelcommittee", "franchise_members.csv");
+        var membersCsvPath = Path.Combine("out", "thesequelcommittee", "franchise_members.csv");
         if (File.Exists(membersCsvPath))
         {
             try
