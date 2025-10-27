@@ -2,7 +2,7 @@ name: Build and Publish Site
 
 on:
   schedule:
-     - cron: '07 0,6,12,18 * * *'   # 00:07, 06:07, 12:07, 18:07 UTC
+    - cron: '07 0,6,12,18 * * *'   # 00:07, 06:07, 12:07, 18:07 UTC
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -22,237 +22,251 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: 8.0.x
 
-      # Debug helper: see where files actually are
+      # Debug helper
       - name: Show repo layout
+        shell: bash
         run: |
           pwd
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- Sequel Committee (fail fast) ----------
+      # ---------- SequelCommittee (fail fast) ----------
       - name: Locate SequelCommittee worker
         id: locate_sequel
+        shell: bash
         run: |
           set -euo pipefail
-          try1="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'SequelCommittee.Worker.csproj' -print -quit || true)"
-          try2="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*Worker*.csproj' -print -quit || true)"
-          try3="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*.csproj' -print -quit || true)"
-          try4="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'TheSequelCommittee*.csproj' -print -quit || true)"
-
-          csproj="${try1:-}"; [ -z "$csproj" ] && csproj="${try2:-}"
-          [ -z "$csproj" ] && csproj="${try3:-}"
-          [ -z "$csproj" ] && csproj="${try4:-}"
-
-          echo "Attempted:"
-          echo "  try1=$try1"; echo "  try2=$try2"; echo "  try3=$try3"; echo "  try4=$try4"
-
-          if [ -z "${csproj}" ]; then
-            echo "❌ Could not find any SequelCommittee .csproj. Ensure the project is committed and the filename matches." >&2
-            exit 1
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'SequelCommittee.Worker.csproj' -print -quit || true)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find SequelCommittee.Worker.csproj"; exit 1
           fi
-
-          echo "✅ Using: $csproj"
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (SequelCommittee)
+        shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
 
       - name: Build (SequelCommittee)
+        shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
 
-      # Run from repo root so relative paths write into out/thesequelcommittee/html
       - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
+        shell: bash
         env:
-          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}  # add if you use one
+          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
         id: locate_feed
+        shell: bash
         run: |
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Feed.Worker.csproj" >&2; exit 1
+            echo "Could not find Feed.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (Feed)
+        shell: bash
         run: dotnet restore "${{ steps.locate_feed.outputs.csproj }}"
 
       - name: Build (Feed)
+        shell: bash
         run: dotnet build "${{ steps.locate_feed.outputs.csproj }}" -c Release --no-restore
 
       - name: Run Feed worker (writes /out/index.html)
+        shell: bash
         working-directory: ${{ steps.locate_feed.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
-          DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
-          DROPBOX_PHOTOS_FOLDER:  '/Public/Photos'
-          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_PHOTOS_FOLDER: /Public/Photos
+          GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}
         run: dotnet run -c Release
 
-      # ---------- Albums (Spotify + eBay) ----------
+      # ---------- Albums ----------
       - name: Locate Albums worker
         id: locate_albums
+        shell: bash
         run: |
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Albums.Worker.csproj" >&2; exit 1
+            echo "Could not find Albums.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (Albums)
+        shell: bash
         run: dotnet restore "${{ steps.locate_albums.outputs.csproj }}"
 
       - name: Build (Albums)
+        shell: bash
         run: dotnet build "${{ steps.locate_albums.outputs.csproj }}" -c Release --no-restore
 
       - name: Run Albums worker (writes /albums and /ebay)
+        shell: bash
         working-directory: ${{ steps.locate_albums.outputs.projdir }}
         env:
-          OUTPUT_DIR:              ${{ github.workspace }}/out/albums
-          EBAY_OUTPUT_DIR:         ${{ github.workspace }}/out
-          SPOTIFY_CLIENT_ID:       ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
-          SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-          STAR_PLAYLISTS:          "${{ secrets.STAR_PLAYLISTS }}"
-          FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
-          EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
-          PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
-          TOP_N:                   ${{ vars.TOP_N }}
-          EBAY_ALBUM_LIMIT:        250
-          EBAY_CLIENT_ID:          ${{ secrets.EBAY_CLIENT_ID }}
-          EBAY_CLIENT_SECRET:      ${{ secrets.EBAY_CLIENT_SECRET }}
-          EBAY_MARKETPLACE:        ${{ vars.EBAY_MARKETPLACE }}
-          EBAY_DELIVERY_CC:        ${{ vars.EBAY_DELIVERY_CC }}
-          EBAY_MAX_PRICE_GBP:      ${{ vars.EBAY_MAX_PRICE_GBP }}
-          EBAY_PAGES_PER_QUERY:    ${{ vars.EBAY_PAGES_PER_QUERY }}
-          EBAY_LIMIT_PER_PAGE:     ${{ vars.EBAY_LIMIT_PER_PAGE }}
-          EBAY_QUERY_CONCURRENCY:  ${{ vars.EBAY_QUERY_CONCURRENCY }}
-          EBAY_MAX_RESULTS:        ${{ vars.EBAY_MAX_RESULTS }}
+          OUTPUT_DIR: ${{ github.workspace }}/out/albums
+          EBAY_OUTPUT_DIR: ${{ github.workspace }}/out
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          STAR_PLAYLISTS: ${{ secrets.STAR_PLAYLISTS }}
+          FILLER_PLAYLIST_ID: ${{ vars.FILLER_PLAYLIST_ID }}
+          EXCLUDED_PLAYLIST_ID: ${{ vars.EXCLUDED_PLAYLIST_ID }}
+          PURCHASED_PLAYLIST_ID: ${{ vars.PURCHASED_PLAYLIST_ID }}
+          TOP_N: ${{ vars.TOP_N }}
+          EBAY_ALBUM_LIMIT: 250
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_MARKETPLACE: ${{ vars.EBAY_MARKETPLACE }}
+          EBAY_DELIVERY_CC: ${{ vars.EBAY_DELIVERY_CC }}
+          EBAY_MAX_PRICE_GBP: ${{ vars.EBAY_MAX_PRICE_GBP }}
+          EBAY_PAGES_PER_QUERY: ${{ vars.EBAY_PAGES_PER_QUERY }}
+          EBAY_LIMIT_PER_PAGE: ${{ vars.EBAY_LIMIT_PER_PAGE }}
+          EBAY_QUERY_CONCURRENCY: ${{ vars.EBAY_QUERY_CONCURRENCY }}
+          EBAY_MAX_RESULTS: ${{ vars.EBAY_MAX_RESULTS }}
         run: dotnet run -c Release
 
-      # ---------- Fitness (/fitness) ----------
+      # ---------- Fitness ----------
       - name: Locate Fitness worker
         id: locate_fitness
+        shell: bash
         run: |
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Fitness.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-              echo "Could not find Fitness.Worker.csproj" >&2; exit 1
+            echo "Could not find Fitness.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (Fitness)
+        shell: bash
         run: dotnet restore "${{ steps.locate_fitness.outputs.csproj }}"
 
       - name: Build (Fitness)
+        shell: bash
         run: dotnet build "${{ steps.locate_fitness.outputs.csproj }}" -c Release --no-restore
 
       - name: Run Fitness worker (writes to /out/fitness)
+        shell: bash
         working-directory: ${{ steps.locate_fitness.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: dotnet run -c Release
 
-      # ---------- Photos (/photos) ----------
+      # ---------- Photos ----------
       - name: Locate Photos worker
         id: locate_photos
+        shell: bash
         run: |
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Photos.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Photos.Worker.csproj" >&2; exit 1
+            echo "Could not find Photos.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (Photos)
+        shell: bash
         run: dotnet restore "${{ steps.locate_photos.outputs.csproj }}"
 
       - name: Build (Photos)
+        shell: bash
         run: dotnet build "${{ steps.locate_photos.outputs.csproj }}" -c Release --no-restore
 
       - name: Run Photos worker (writes to /out/photos)
+        shell: bash
         working-directory: ${{ steps.locate_photos.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
-          DROPBOX_PHOTOS_FOLDER: '/Public/Photos'
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_PHOTOS_FOLDER: /Public/Photos
         run: dotnet run -c Release
 
-      # ---------- Goodreads (/books) ----------
+      # ---------- Goodreads ----------
       - name: Locate Goodreads worker
         id: locate_goodreads
+        shell: bash
         run: |
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Goodreads.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Goodreads.Worker.csproj" >&2; exit 1
+            echo "Could not find Goodreads.Worker.csproj"; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
       - name: Restore (Goodreads)
+        shell: bash
         run: dotnet restore "${{ steps.locate_goodreads.outputs.csproj }}"
 
       - name: Build (Goodreads)
+        shell: bash
         run: dotnet build "${{ steps.locate_goodreads.outputs.csproj }}" -c Release --no-restore
 
       - name: Check Goodreads secret presence
+        shell: bash
+        env:
+          GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}
         run: |
           if [ -z "${GOODREADS_RSS_URL:-}" ]; then
-            echo "GOODREADS_RSS_URL is NOT set"; exit 1;
+            echo "GOODREADS_RSS_URL is NOT set"; exit 1
           else
-            echo "GOODREADS_RSS_URL is present ✅";
+            echo "GOODREADS_RSS_URL is present"
           fi
-        env:
-          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
 
       - name: Run Goodreads worker (writes to /out/books)
+        shell: bash
         working-directory: ${{ steps.locate_goodreads.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
+          GOODREADS_RSS_URL: ${{ secrets.GOODREADS_RSS_URL }}
         run: dotnet run -c Release
 
-      # ---------- Copy static assets (CSS, etc.) ----------
+      # ---------- Copy static assets ----------
       - name: Copy static assets
+        shell: bash
         run: |
           mkdir -p "${{ github.workspace }}/out"
-          cp -v assets/styles.css  "${{ github.workspace }}/out/styles.css"
-          cp -v assets/albums.css  "${{ github.workspace }}/out/albums.css"
+          cp -v assets/styles.css "${{ github.workspace }}/out/styles.css"
+          cp -v assets/albums.css "${{ github.workspace }}/out/albums.css"
 
       # ---------- Configure & Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Inspect out dir (sanity)
+        shell: bash
         run: |
-            echo "----- tree of out ------"
-            find "${{ github.workspace }}/out" -maxdepth 3 -type f -print | sed 's#^./##'
-            echo "----- index.html head ---"
-            head -n 40 "${{ github.workspace }}/out/index.html" || true
+          echo "----- tree of out ------"
+          find "${{ github.workspace }}/out" -maxdepth 3 -type f -print
+          echo "----- index.html head ---"
+          head -n 40 "${{ github.workspace }}/out/index.html" || true
 
       - name: Write CNAME
+        shell: bash
         run: echo "www.mattdurrant.com" > "${{ github.workspace }}/out/CNAME"
 
       - name: Upload artifact
