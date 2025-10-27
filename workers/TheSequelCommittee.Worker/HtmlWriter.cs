@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Text;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public static class HtmlWriter
 {

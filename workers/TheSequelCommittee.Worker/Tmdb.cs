@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public static class Tmdb
 {

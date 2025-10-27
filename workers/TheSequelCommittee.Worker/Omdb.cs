@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public static class Omdb
 {

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public record DiscoverResponse
 {

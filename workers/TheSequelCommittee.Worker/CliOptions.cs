@@ -1,4 +1,4 @@
-﻿namespace TheSequelCommittee;
+﻿namespace TheSequelCommittee.Worker;
 
 public sealed class CliOptions
 {

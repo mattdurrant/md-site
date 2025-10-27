@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public static class Csv
 {

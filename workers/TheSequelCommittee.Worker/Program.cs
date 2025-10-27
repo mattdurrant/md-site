@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
-using TheSequelCommittee;
+using TheSequelCommittee.Worker;
 
 internal class Program
 {

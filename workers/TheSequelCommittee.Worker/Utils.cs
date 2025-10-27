@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 
-namespace TheSequelCommittee;
+namespace TheSequelCommittee.Worker;
 
 public static class Utils
 {
