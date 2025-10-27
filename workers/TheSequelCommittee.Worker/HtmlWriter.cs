@@ -10,15 +10,13 @@ public static class HtmlWriter
     // --- Score bands (percent) ---
     private const double CLASSIC = 80.0;
     private const double GREAT = 70.0;
-    private const double DECENT = 65.0;
     private const double POOR = 50.0;
 
     // Icons
-    private const string ICON_BEAT = "🏆"; // Golden cup award
-    private const string ICON_GOOD = "✅"; // Seal of approval
-    private const string ICON_BAD = "🚫"; // Seal of disapproval
+    private const string ICON_ACCEPT = "✅";
+    private const string ICON_DENY = "🚫";
 
-    // --- UI constants ---
+    // UI constants
     private const string PosterBaseDefault = "https://image.tmdb.org/t/p/w342";
 
     public static async Task WriteHtmlReportsAsync(
@@ -28,10 +26,11 @@ public static class HtmlWriter
         string ratingSource,
         string posterBaseUrl = PosterBaseDefault)
     {
+        // >>> Output folder updated <<<
         var outDir = Path.Combine("out", "thesequelcommittee", "html");
         Directory.CreateDirectory(outDir);
 
-        // Prepare lookups
+        // Lookups
         var runById = runs.ToDictionary(r => r.CollectionId, r => r);
         var releasedByCid = moviesJoined
             .GroupBy(m => m.CollectionId)
@@ -42,7 +41,7 @@ public static class HtmlWriter
                       .ToList()
             );
 
-        // Load unreleased (upcoming) from franchise_members.csv
+        // Upcoming from franchise_members.csv
         Dictionary<int, List<MemberRow>> upcomingByCid = new();
         var membersCsvPath = Path.Combine("out", "thesequelcommittee", "franchise_members.csv");
         if (File.Exists(membersCsvPath))
@@ -77,19 +76,13 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;ba
 h1{font-size:28px;margin:0 0 6px}
 a{color:#8ab4ff;text-decoration:none}
 a:hover{text-decoration:underline}
-.oneliner{color:#bdbdbd;margin:8px 0 16px;font-size:14px}
-
-/* Section heading */
-.subhead{margin:18px 0 8px;color:#cfcfcf;font-weight:700}
 
 /* Grids */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin:6px 0 8px}
-.gridTiny{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin:6px 0 18px}
 .gridUpcoming{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin:6px 0 28px}
 
 /* Cards */
 .card{position:relative;border-radius:14px;overflow:hidden;background:#151515;box-shadow:0 2px 12px rgba(0,0,0,.45)}
-.card.tiny{border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.30)}
 .poster{aspect-ratio:2/3;background:#1f1f1f;display:grid;place-items:center;position:relative}
 .poster img{width:100%;height:100%;object-fit:cover;display:block}
 
@@ -100,17 +93,15 @@ a:hover{text-decoration:underline}
   text-shadow:0 1px 2px rgba(0,0,0,.8);
 }
 .ttl{font-weight:700;font-size:15px;line-height:1.25;margin:0 0 4px}
-.card.tiny .ttl{font-size:13px}
 .meta{font-size:12px;color:#e1e1e1}
-.card.tiny .meta{font-size:10.5px}
 
 /* Visual */
-.instreak{outline:2px solid rgba(45,212,191,.7);}
 .out{filter:grayscale(1) brightness(0.7) opacity(0.5);}
 .crown{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);padding:2px 6px;border-radius:999px;font-size:12px;z-index:4}
+.idx{position:absolute;top:6px;left:8px;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:999px;font-size:12px}
 
 /* Table */
-.section{margin:8px 0 10px;font-weight:600}
+.section{margin:18px 0 10px;font-weight:600}
 .tablewrap{overflow:auto;border:1px solid #262626;border-radius:12px;background:#111}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:10px 12px;border-bottom:1px solid #1f1f1f;text-align:left;white-space:nowrap}
@@ -129,16 +120,19 @@ td.title{white-space:normal}
 .kicker{color:#bdbdbd;margin:0 0 16px;font-size:14px}
 .footer-note{color:#a9a9a9;margin-top:22px;font-size:12px;text-align:right}
 
-/* Index groups */
-.groupTitle{margin:22px 0 10px;font-weight:700;color:#d9d9d9}
-.seal{display:inline-block;margin-left:8px;font-size:18px;vertical-align:middle}
+/* Index two groups */
+.groupTitle{margin:22px 0 4px;font-weight:800;color:#e5e5e5}
+.groupSub{margin:0 0 12px;color:#bdbdbd}
 
-/* Collection seal under title */
+/* Seal under title */
 .sealLine{color:#bdbdbd;margin:4px 0 12px;font-size:14px}
 .sealBadge{display:inline-block;padding:6px 10px;border:1px solid #2a2a2a;border-radius:999px;background:#161616}
+
+/* Minor headings */
+.subhead{margin:18px 0 8px;color:#cfcfcf;font-weight:700}
 ";
 
-        // ---------- Build each collection page ----------
+        // ---------- Collection pages ----------
         foreach (var f in franchises)
         {
             releasedByCid.TryGetValue(f.CollectionId, out var released);
@@ -147,14 +141,13 @@ td.title{white-space:normal}
 
             released ??= new();
 
-            // --- Precompute adjusted scores for COLOURING (>=65 rule) ---
-            // Base scores for all films (no boost)
+            // Base scores (no boost)
             var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
-            bool anyOtherDecent = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= DECENT);
 
-            // Copy & apply +2% to FIRST film ONLY if there are NO other >=65
+            // Colouring rule: +2% to FIRST film ONLY if there are NO other films ≥70
+            bool anyOtherGreatOrClassic = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
             var colourScores = baseScores.ToArray();
-            if (!anyOtherDecent && colourScores.Count() > 0 && colourScores[0].HasValue)
+            if (!anyOtherGreatOrClassic && colourScores.Length > 0 && colourScores[0].HasValue)
             {
                 double boosted = colourScores[0]!.Value + 2.0;
                 if (boosted > 100.0) boosted = 100.0;
@@ -162,40 +155,11 @@ td.title{white-space:normal}
             }
 
             int? peakIdx = run?.PeakIndex;
-            int? sStart = run?.StreakStartIndex;
-            int? sEnd = run?.StreakEndIndex;
 
-            // Theory category (STRICT ≥70 groups with its own boost rule)
-            var theory = EvaluateTheoryStrict(released, ratingSource);
+            // Approved / Denied verdict (STRICT ≥70 with its own first-film +2% rule)
+            var verdict = EvaluateAcceptedDenied(released, ratingSource);
 
-            // Recommended sequence (existing streak logic or peak fallback)
-            var recommended = new List<MovieJoined>();
-            if (released.Count > 0 && sStart.HasValue && sEnd.HasValue &&
-                sStart.Value >= 0 && sEnd.Value >= sStart.Value && sEnd.Value < released.Count)
-            {
-                for (int i = sStart.Value; i <= sEnd.Value; i++)
-                    recommended.Add(released[i]);
-            }
-            else if (released.Count > 0 && peakIdx is int p && p >= 0 && p < released.Count)
-            {
-                recommended.Add(released[p]);
-            }
-
-            // Ranked table (released-only)
-            var ranked = released
-                .Select((m, seriesIndex) => new
-                {
-                    Movie = m,
-                    SeriesIndex = seriesIndex,
-                    Score = GetBaseScore(m, ratingSource), // table shows raw chosen source
-                    ImdbVotes = m.ImdbVotes ?? 0
-                })
-                .OrderByDescending(x => x.Score.HasValue)
-                .ThenByDescending(x => Math.Round(x.Score ?? double.MinValue, 2))
-                .ThenByDescending(x => x.ImdbVotes)
-                .ThenBy(x => x.SeriesIndex)
-                .ToList();
-
+            // ---------- HTML ----------
             var sb = new StringBuilder();
             sb.Append("<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
             sb.Append("<title>").Append(Utils.CsvEscape(SimplifyName(f.Name))).Append("</title><style>").Append(Css).Append("</style>");
@@ -204,56 +168,27 @@ td.title{white-space:normal}
             sb.Append("<a href='./index.html' style='color:#8ab4ff'>&larr; Back</a>");
             sb.Append("<h1>").Append(Utils.CsvEscape(SimplifyName(f.Name))).Append("</h1>");
 
-            // Seal under the title
+            // Seal under the title: label only
             sb.Append("<div class='sealLine'><span class='sealBadge'>")
-              .Append(TheorySealIcon(theory))
+              .Append(VerdictIcon(verdict))
               .Append("&nbsp;")
-              .Append(Utils.CsvEscape(TheorySealLabel(theory)))
+              .Append(Utils.CsvEscape(VerdictLabel(verdict)))
               .Append("</span></div>");
 
-            // Ones To Watch — apply ≥65 colouring too
-            sb.Append("<div class='subhead'>The Ones To Watch</div><div class='grid'>");
-            if (recommended.Count > 0)
+            // --- Whole collection (no heading), release order, colour if >=70 (after first-film rule), else grey ---
+            if (released.Count > 0)
             {
-                foreach (var m in recommended)
-                {
-                    int seriesIndex = released.FindIndex(x => x.MovieTmdbId == m.MovieTmdbId);
-                    bool isBest = (peakIdx == seriesIndex);
-                    bool greyOut = !(colourScores[seriesIndex].HasValue && colourScores[seriesIndex]!.Value >= DECENT);
-                    bool inStreak = sStart.HasValue && sEnd.HasValue && seriesIndex >= sStart.Value && seriesIndex <= sEnd.Value;
-
-                    EmitCard(sb, m, seriesIndex, isBest, inStreak: inStreak, greyOut: greyOut, tiny: false, posterBaseUrl);
-                }
-            }
-            else
-            {
-                sb.Append("<div style='color:#bdbdbd'>No recommended run found.</div>");
-            }
-            sb.Append("</div>");
-
-            // Franchise one-liner verdict beneath recommendations (unchanged)
-            var oneLiner = OneLineVerdict(released, run, upcoming, ratingSource);
-            sb.Append("<p class='oneliner'>").Append(Utils.CsvEscape(oneLiner)).Append("</p>");
-
-            // Complete set (smaller; grey out using ≥65 adjusted logic) — omit if identical to recommended
-            bool completeEqualsRecommended = recommended.Count > 0 && recommended.Count == released.Count &&
-                                             recommended.Select(x => x.MovieTmdbId).SequenceEqual(released.Select(x => x.MovieTmdbId));
-
-            if (released.Count > 0 && !completeEqualsRecommended)
-            {
-                sb.Append("<div class='subhead'>Complete set</div><div class='gridTiny'>");
+                sb.Append("<div class='grid'>");
                 for (int i = 0; i < released.Count; i++)
                 {
                     bool isBest = (peakIdx == i);
-                    bool inStreak = sStart.HasValue && sEnd.HasValue && i >= sStart.Value && i <= sEnd.Value;
-                    bool greyOut = !(colourScores[i].HasValue && colourScores[i]!.Value >= DECENT);
-
-                    EmitCard(sb, released[i], i, isBest, inStreak: inStreak, greyOut: greyOut, tiny: true, posterBaseUrl);
+                    bool greyOut = !(colourScores[i].HasValue && colourScores[i]!.Value >= GREAT); // >=70 coloured
+                    EmitCard(sb, released[i], i, isBest, inStreak: false, greyOut: greyOut, tiny: false, posterBaseUrl);
                 }
                 sb.Append("</div>");
             }
 
-            // Upcoming (not included in calculations/table)
+            // Upcoming
             if (upcoming != null && upcoming.Count > 0)
             {
                 sb.Append("<div class='subhead'>Upcoming</div><div class='gridUpcoming'>");
@@ -265,6 +200,20 @@ td.title{white-space:normal}
             // Ranked table
             if (released.Count > 0)
             {
+                var ranked = released
+                    .Select((m, seriesIndex) => new
+                    {
+                        Movie = m,
+                        SeriesIndex = seriesIndex,
+                        Score = GetBaseScore(m, ratingSource),
+                        ImdbVotes = m.ImdbVotes ?? 0
+                    })
+                    .OrderByDescending(x => x.Score.HasValue)
+                    .ThenByDescending(x => Math.Round(x.Score ?? double.MinValue, 2))
+                    .ThenByDescending(x => x.ImdbVotes)
+                    .ThenBy(x => x.SeriesIndex)
+                    .ToList();
+
                 sb.Append("<div class='section'>Best to Worst Films in the Collection</div>");
                 sb.Append("<div class='tablewrap'><table><thead><tr>");
                 sb.Append("<th style='width:64px'>Rank</th>");
@@ -298,124 +247,87 @@ td.title{white-space:normal}
             await File.WriteAllTextAsync(Path.Combine(outDir, $"{f.CollectionId}.html"), sb.ToString());
         }
 
-        // ---------- Index page with strict groups (unchanged) ----------
+        // ---------- Index page (2 groups) ----------
         string lastUpdatedUk = GetUkNow().ToString("dd'/'MM'/'yy", CultureInfo.GetCultureInfo("en-GB"));
 
-        var beat = new List<FranchiseAgg>();
-        var good = new List<FranchiseAgg>();
-        var bad = new List<FranchiseAgg>();
+        var accepted = new List<FranchiseAgg>();
+        var denied = new List<FranchiseAgg>();
 
         foreach (var f in franchises)
         {
             releasedByCid.TryGetValue(f.CollectionId, out var released);
             released ??= new();
-            var cat = EvaluateTheoryStrict(released, ratingSource);
-            switch (cat)
-            {
-                case TheoryCategory.Beat: beat.Add(f); break;
-                case TheoryCategory.MatchGood: good.Add(f); break;
-                default: bad.Add(f); break;
-            }
+            var cat = EvaluateAcceptedDenied(released, ratingSource);
+            if (cat == Verdict.Accepted) accepted.Add(f); else denied.Add(f);
         }
 
-        beat = beat.OrderBy(x => SimplifyName(x.Name)).ToList();
-        good = good.OrderBy(x => SimplifyName(x.Name)).ToList();
-        bad = bad.OrderBy(x => SimplifyName(x.Name)).ToList();
+        accepted = accepted.OrderBy(x => SimplifyName(x.Name)).ToList();
+        denied = denied.OrderBy(x => SimplifyName(x.Name)).ToList();
 
         var idx = new StringBuilder();
         idx.Append("<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
         idx.Append("<title>The Sequel Committee</title><style>").Append(Css).Append("</style><body><div class='wrap'>");
 
-        // Title + overall count
+        // Title + count
         idx.Append("<h1>The Sequel Committee</h1>");
         idx.Append("<p class='kicker'>").Append(franchises.Count).Append(" collections</p>");
 
-        // Group 1: Beat the theory (🏆)
-        idx.Append("<div class='groupTitle'>Beat the theory <span class='seal'>").Append(ICON_BEAT).Append("</span></div>");
+        // Accepted
+        idx.Append("<div class='groupTitle'>").Append(ICON_ACCEPT).Append(" Accepted by the Committee</div>");
+        idx.Append("<div class='groupSub'>Sequels approved!</div>");
         idx.Append("<div class='gridIdx'>");
-        foreach (var f in beat)
+        foreach (var f in accepted)
         {
             var nm = Utils.CsvEscape(SimplifyName(f.Name));
             idx.Append("<a class='box' href='./").Append(f.CollectionId).Append(".html'><div class='ttl'>").Append(nm).Append("</div></a>");
         }
         idx.Append("</div>");
 
-        // Group 2: Match the theory (good) (✅)
-        idx.Append("<div class='groupTitle'>Match the theory (good) <span class='seal'>").Append(ICON_GOOD).Append("</span></div>");
+        // Denied
+        idx.Append("<div class='groupTitle' style='margin-top:28px;'>").Append(ICON_DENY).Append(" Denied by the Committee</div>");
+        idx.Append("<div class='groupSub'>Congratulations, you've ruined it.</div>");
         idx.Append("<div class='gridIdx'>");
-        foreach (var f in good)
+        foreach (var f in denied)
         {
             var nm = Utils.CsvEscape(SimplifyName(f.Name));
             idx.Append("<a class='box' href='./").Append(f.CollectionId).Append(".html'><div class='ttl'>").Append(nm).Append("</div></a>");
         }
         idx.Append("</div>");
 
-        // Group 3: Match the theory (bad) (🚫)
-        idx.Append("<div class='groupTitle'>Match the theory (bad) <span class='seal'>").Append(ICON_BAD).Append("</span></div>");
-        idx.Append("<div class='gridIdx'>");
-        foreach (var f in bad)
-        {
-            var nm = Utils.CsvEscape(SimplifyName(f.Name));
-            idx.Append("<a class='box' href='./").Append(f.CollectionId).Append(".html'><div class='ttl'>").Append(nm).Append("</div></a>");
-        }
-        idx.Append("</div>");
-
-        // Last updated footer (UK format dd/MM/yy)
+        // Last updated footer
         idx.Append("<div class='footer-note'>Last updated ").Append(lastUpdatedUk).Append("</div>");
 
         idx.Append("</div></body></html>");
         await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), idx.ToString());
     }
 
-    // ---------- Theory evaluation (STRICT ≥70 groups) ----------
+    // ---------- Approved / Denied (STRICT ≥70 with conditional first-film +2%) ----------
+    private enum Verdict { Accepted, Denied }
 
-    private enum TheoryCategory { Beat, MatchGood, MatchBad }
-
-    private static TheoryCategory EvaluateTheoryStrict(List<MovieJoined> released, string ratingSource)
+    private static Verdict EvaluateAcceptedDenied(List<MovieJoined> released, string ratingSource)
     {
-        if (released == null || released.Count == 0) return TheoryCategory.MatchBad;
+        if (released == null || released.Count == 0) return Verdict.Denied;
 
-        // Base scores for all films (no boost)
         var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
 
-        // Determine if there are any Great/Classic films beyond the first (>=70)
-        bool anyOtherGood = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
-
-        // Adjust first film +2% ONLY if there are NO other ≥70 films
-        var adjScores = baseScores.ToArray();
-        if (!anyOtherGood && adjScores.Length > 0 && adjScores[0].HasValue)
+        // First-film +2% ONLY if there are NO other ≥70 films
+        bool anyOtherGreat = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
+        var adj = baseScores.ToArray();
+        if (!anyOtherGreat && adj.Length > 0 && adj[0].HasValue)
         {
-            double boosted = adjScores[0]!.Value + 2.0;
+            double boosted = adj[0]!.Value + 2.0;
             if (boosted > 100.0) boosted = 100.0;
-            adjScores[0] = boosted;
+            adj[0] = boosted;
         }
 
-        // STRICT grouping: to be in Beat or MatchGood, *every* released film must be ≥70 (Great/Classic)
-        bool allGreatOrClassic = adjScores.All(s => s.HasValue && s.Value >= GREAT);
-        if (allGreatOrClassic && released.Count >= 4) return TheoryCategory.Beat;
-        if (allGreatOrClassic && released.Count <= 3) return TheoryCategory.MatchGood;
-
-        return TheoryCategory.MatchBad;
+        bool allGreatOrClassic = adj.All(s => s.HasValue && s.Value >= GREAT);
+        return allGreatOrClassic ? Verdict.Accepted : Verdict.Denied;
     }
 
-    private static string TheorySealIcon(TheoryCategory cat)
-        => cat switch
-        {
-            TheoryCategory.Beat => ICON_BEAT,
-            TheoryCategory.MatchGood => ICON_GOOD,
-            _ => ICON_BAD
-        };
-
-    private static string TheorySealLabel(TheoryCategory cat)
-        => cat switch
-        {
-            TheoryCategory.Beat => "Beats the theory",
-            TheoryCategory.MatchGood => "Matches (good)",
-            _ => "Matches (bad)"
-        };
+    private static string VerdictIcon(Verdict v) => v == Verdict.Accepted ? ICON_ACCEPT : ICON_DENY;
+    private static string VerdictLabel(Verdict v) => v == Verdict.Accepted ? "Approved by the Committee" : "Denied by the Committee";
 
     // ---------- Helpers ----------
-
     private static string SimplifyName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return name;
@@ -425,7 +337,7 @@ td.title{white-space:normal}
         return t;
     }
 
-    // Raw score from the chosen source (no boost)
+    // Raw score from chosen source (no boost)
     private static double? GetBaseScore(MovieJoined m, string src)
     {
         if (src == "rt_only") return m.RtCriticPct;
@@ -433,96 +345,6 @@ td.title{white-space:normal}
         if (src == "rt") return m.RtCriticPct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
         if (src == "rt_audience") return m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
         return m.RtCriticPct ?? m.RtAudiencePct ?? m.ImdbRating100 ?? (m.TmdbVoteAverage > 0 ? m.TmdbVoteAverage * 10.0 : (double?)null);
-    }
-
-    private static string OneLineVerdict(List<MovieJoined> released, FranchiseRunRow? run, List<MemberRow>? upcoming, string ratingSource)
-    {
-        int total = released.Count;
-        if (total == 0) return "No released films yet.";
-
-        var good = new HashSet<int>();
-        if (!string.IsNullOrWhiteSpace(run?.GoodIndicesCsv))
-            foreach (var tok in run!.GoodIndicesCsv!.Split(';', StringSplitOptions.RemoveEmptyEntries))
-                if (int.TryParse(tok, out var i) && i >= 0) good.Add(i);
-
-        int goodCount = good.Count;
-        int streakLen = run?.StreakLength ?? 0;
-        int? sStart = run?.StreakStartIndex;
-        int? sEnd = run?.StreakEndIndex;
-        int? peak = run?.PeakIndex;
-
-        var dates = released.Select(m => m.ReleaseDate).Where(d => d.HasValue).Select(d => d!.Value).OrderBy(d => d).ToList();
-        DateTime? lastReleased = dates.Count > 0 ? dates[^1] : (DateTime?)null;
-        DateTime? firstUpcoming = upcoming?.Select(u => Utils.ParseDate(u.ReleaseDate)).Where(d => d.HasValue).Select(d => d!.Value).OrderBy(d => d).FirstOrDefault();
-
-        if (goodCount == 0)
-            return "These movies were never good.";
-
-        bool longGapCashIn = false;
-        if (lastReleased.HasValue)
-        {
-            if (firstUpcoming.HasValue && (firstUpcoming.Value - lastReleased.Value).TotalDays >= 3652)
-                longGapCashIn = true;
-            else
-            {
-                for (int i = 1; i < released.Count; i++)
-                {
-                    var prev = released[i - 1].ReleaseDate;
-                    var cur = released[i].ReleaseDate;
-                    if (prev.HasValue && cur.HasValue && (cur.Value - prev.Value).TotalDays >= 3652 && !good.Contains(i))
-                    { longGapCashIn = true; break; }
-                }
-            }
-        }
-        if (longGapCashIn)
-            return "They just couldn't leave a beloved franchise alone.";
-
-        if (sStart.HasValue && sEnd.HasValue && sStart.Value <= sEnd.Value && sStart.Value >= 0 && sEnd.Value < released.Count)
-        {
-            var streakScores = Enumerable.Range(sStart.Value, sEnd.Value - sStart.Value + 1)
-                .Select(i => GetBaseScore(released[i], ratingSource))
-                .Where(v => v.HasValue)
-                .Select(v => v!.Value)
-                .ToList();
-
-            if (streakScores.Count > 0)
-            {
-                double maxStreak = streakScores.Max();
-                double avgStreak = streakScores.Average();
-                if (maxStreak < CLASSIC || avgStreak < 75.0)
-                    return "No classics but a decent set of movies.";
-            }
-        }
-
-        if (goodCount == total && total <= 3)
-            return "A strong set of movies. Perfect.";
-
-        if (goodCount == total && total > 3)
-            return "A strong set that stayed good beyond a trilogy.";
-
-        if (goodCount == 1 && total >= 3)
-            return good.Contains(0)
-                ? "None of them are great, maybe just watch the first."
-                : "One decent entry in an otherwise weak series.";
-
-        if (run is not null && run.StreakStartIndex == 0 && streakLen >= 2 && run.StreakEndIndex.HasValue &&
-            (total - (run.StreakEndIndex.Value + 1)) >= Math.Max(2, total / 3))
-            return "A great franchise they have driven into the ground.";
-
-        if (peak.HasValue && peak.Value <= Math.Max(1, total / 3) && run?.StreakEndIndex is int e && e < total - 1)
-            return "A good set of movies that got worse over time.";
-
-        if (peak.HasValue && peak.Value >= total - Math.Max(1, total / 3))
-        {
-            int badBefore = Enumerable.Range(0, peak.Value).Count(i => !good.Contains(i));
-            if (badBefore >= Math.Max(1, total / 4))
-                return "A strong set of movies that only got better over time.";
-        }
-
-        if (total > 3 && (streakLen <= 1 || goodCount <= total / 2))
-            return "A franchise that went on too long with the occasional decent movie.";
-
-        return "A solid run with a few bumps.";
     }
 
     private static DateTime GetUkNow()
@@ -536,7 +358,7 @@ td.title{white-space:normal}
         {
             try
             {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"); // Windows
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
                 return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
             }
             catch
@@ -565,8 +387,6 @@ td.title{white-space:normal}
         string ukDate = m.ReleaseDate?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "";
 
         var cls = new List<string> { "card" };
-        if (tiny) cls.Add("tiny");
-        if (inStreak) cls.Add("instreak");
         if (greyOut) cls.Add("out");
 
         sb.Append("<article class='").Append(string.Join(" ", cls)).Append("'>");
