@@ -27,7 +27,7 @@ public static class HtmlWriter
         string posterBaseUrl = PosterBaseDefault)
     {
         // Output folder
-        var outDir = Path.Combine("out", "thesequelcommittee", "html");
+        var outDir = Path.Combine("out", "thesequelcommittee");
         Directory.CreateDirectory(outDir);
 
         // Lookups
