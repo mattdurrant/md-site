@@ -39,7 +39,7 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- TheSequelCommittee (fail fast) ----------
+      # ---------- TheSequelCommittee ----------
       - name: Locate TheSequelCommittee worker
         id: locate_sequel
         shell: bash
@@ -67,6 +67,40 @@ jobs:
           key: sequel-csv-${{ runner.os }}-${{ hashFiles('**/TheSequelCommittee.Worker.csproj') }}
           restore-keys: |
             sequel-csv-${{ runner.os }}-
+
+      - name: Locate Sequel outputs (diagnostic)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "---- listing candidate output roots ----"
+          for p in \
+            "${{ steps.locate_sequel.outputs.projdir }}/out" \
+            "${{ github.workspace }}/out"
+          do
+            echo ">> $p"
+            [ -d "$p" ] && find "$p" -maxdepth 4 -type f -print || echo "(missing)"
+          done
+
+      - name: Collect Sequel site into repo out (/thesequelcommittee)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
+          cands=(
+            "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
+            "${{ github.workspace }}/out/sequelcommittee"
+          )
+          src=""
+          for d in "${cands[@]}"; do
+            if [ -d "$d" ]; then src="$d"; break; fi
+          done
+          if [ -z "$src" ]; then
+            echo "ERROR: Could not find Sequel HTML output in:"
+            printf '  - %s\n' "${cands[@]}"
+            exit 1
+          fi
+          echo "Copying from: $src"
+          rsync -a "$src"/ "${{ github.workspace }}/out/thesequelcommittee"/
 
       - name: Restore (TheSequelCommittee)
         shell: bash
@@ -319,12 +353,12 @@ jobs:
         shell: bash
         run: |
           echo "----- tree of out ------"
-          find "${{ github.workspace }}/out" -maxdepth 3 -type f -print
+          find "${{ github.workspace }}/out" -maxdepth 4 -type f -print
           echo "----- sequel index head ---"
-          head -n 40 "${{ github.workspace }}/out/thesequelcommittee/html/index.html" || true
+          head -n 40 "${{ github.workspace }}/out/thesequelcommittee/index.html" || true
           echo "----- site index head ---"
           head -n 40 "${{ github.workspace }}/out/index.html" || true
-
+      
       - name: Write CNAME
         shell: bash
         run: echo "www.mattdurrant.com" > "${{ github.workspace }}/out/CNAME"
