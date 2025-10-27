@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Linq;
 using System.Text;
+using TheSequelCommittee.Worker;
 
 namespace TheSequelCommittee.Worker;
 
@@ -27,7 +28,7 @@ public static class HtmlWriter
         string ratingSource,
         string posterBaseUrl = PosterBaseDefault)
     {
-        var outDir = Path.Combine("out", "html");
+        var outDir = Path.Combine("out", "sequelcommittee", "html");
         Directory.CreateDirectory(outDir);
 
         // Prepare lookups
@@ -43,7 +44,7 @@ public static class HtmlWriter
 
         // Load unreleased (upcoming) from franchise_members.csv
         Dictionary<int, List<MemberRow>> upcomingByCid = new();
-        var membersCsvPath = Path.Combine("out", "franchise_members.csv");
+        var membersCsvPath = Path.Combine("out", "sequelcommittee", "franchise_members.csv");
         if (File.Exists(membersCsvPath))
         {
             try

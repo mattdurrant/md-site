@@ -17,7 +17,7 @@ internal class Program
             Console.WriteLine($"[Release filter] include-future={(opt.IncludeFuture ? "yes" : "no (exclude)")}");
             Console.WriteLine($"[Streaks] good-threshold={opt.GoodThreshold}, first-film-grace={opt.FirstFilmGrace}, min-streak-len={opt.MinStreakLen}, prefer-origin={(opt.PreferOrigin ? "yes" : "no")}");
 
-            Directory.CreateDirectory("./out");
+            Directory.CreateDirectory("./out/thesequelcommittee");
 
             var franchises = new Dictionary<int, FranchiseAgg>();
             var members = new List<MemberRow>();
@@ -32,11 +32,11 @@ internal class Program
             if (opt.HtmlOnly)
             {
                 Console.WriteLine("[HTML] Rebuilding from cached TMDb CSVs only.");
-                if (!File.Exists("./out/franchises.csv") || !File.Exists("./out/franchise_members.csv"))
-                    throw new InvalidOperationException("Missing ./out/franchises.csv or ./out/franchise_members.csv. Run a TMDb crawl once to generate them.");
+                if (!File.Exists("./out/thesequelcommittee/franchises.csv") || !File.Exists("./out/thesequelcommittee/franchise_members.csv"))
+                    throw new InvalidOperationException("Missing ./out/thesequelcommittee/franchises.csv or ./out/thesequelcommittee/franchise_members.csv. Run a TMDb crawl once to generate them.");
 
-                foreach (var f in Csv.LoadFranchisesCsv("./out/franchises.csv")) franchises[f.CollectionId] = f;
-                members.AddRange(Csv.LoadMembersCsv("./out/franchise_members.csv"));
+                foreach (var f in Csv.LoadFranchisesCsv("./out/thesequelcommittee/franchises.csv")) franchises[f.CollectionId] = f;
+                members.AddRange(Csv.LoadMembersCsv("./out/thesequelcommittee/franchise_members.csv"));
 
                 if (!opt.IncludeFuture)
                 {
@@ -84,7 +84,7 @@ internal class Program
                     opt.GoodThreshold, opt.MinStreakLen, opt.FirstFilmGrace, opt.PreferOrigin);
 
                 await HtmlWriter.WriteHtmlReportsAsync(franchisesOut, joinedOut, runsOut, "tmdb", "https://image.tmdb.org/t/p/w342");
-                Console.WriteLine("[Write] ./out/html index + collection pages");
+                Console.WriteLine("[Write] ./out/thesequelcommittee/html index + collection pages");
                 Console.WriteLine("[Done] HTML-only rebuild complete.");
                 return 0;
             }
@@ -92,11 +92,11 @@ internal class Program
             // --- NORMAL PATH (TMDb crawl) ---
 
             var franchisesLoaded = false;
-            if (opt.Reuse && File.Exists("./out/franchises.csv") && File.Exists("./out/franchise_members.csv"))
+            if (opt.Reuse && File.Exists("./out/thesequelcommittee/franchises.csv") && File.Exists("./out/thesequelcommittee/franchise_members.csv"))
             {
-                Console.WriteLine("[Reuse] Loading from ./out/*.csv …");
-                foreach (var f in Csv.LoadFranchisesCsv("./out/franchises.csv")) franchises[f.CollectionId] = f;
-                members.AddRange(Csv.LoadMembersCsv("./out/franchise_members.csv"));
+                Console.WriteLine("[Reuse] Loading from ./out/thesequelcommittee/*.csv …");
+                foreach (var f in Csv.LoadFranchisesCsv("./out/thesequelcommittee/franchises.csv")) franchises[f.CollectionId] = f;
+                members.AddRange(Csv.LoadMembersCsv("./out/thesequelcommittee/franchise_members.csv"));
                 Console.WriteLine($"[Reuse] Loaded {franchises.Count} franchises, {members.Count} members.");
                 franchisesLoaded = true;
             }
@@ -190,8 +190,8 @@ internal class Program
                     f.AvgVoteWeighted = f.TotalVoteCount > 0 ? f.WeightedVoteSum / f.TotalVoteCount : 0.0;
                     f.Score = 0.5 * Math.Log10(1 + f.SumPopularity) + 0.3 * f.AvgVoteWeighted + 0.2 * Math.Log10(1 + f.TotalVoteCount);
                 }
-                await File.WriteAllTextAsync("./out/franchises.csv", Csv.BuildFranchisesCsv(franchises.Values));
-                await File.WriteAllTextAsync("./out/franchise_members.csv", Csv.BuildMembersCsv(members));
+                await File.WriteAllTextAsync("./out/thesequelcommittee/franchises.csv", Csv.BuildFranchisesCsv(franchises.Values));
+                await File.WriteAllTextAsync("./out/thesequelcommittee/franchise_members.csv", Csv.BuildMembersCsv(members));
                 Console.WriteLine("[Write] franchises.csv, franchise_members.csv");
             }
 
@@ -201,8 +201,8 @@ internal class Program
                 int added = await Filler.FillMissingCollectionPartsAsync(opt.TmdbKey!, franchises, members, opt.SleepMs, opt.FillLimit);
                 Console.WriteLine($"[Fill] Added {added} missing movies.");
                 Rescore(franchises, members);
-                await File.WriteAllTextAsync("./out/franchises.csv", Csv.BuildFranchisesCsv(franchises.Values));
-                await File.WriteAllTextAsync("./out/franchise_members.csv", Csv.BuildMembersCsv(members));
+                await File.WriteAllTextAsync("./out/thesequelcommittee/franchises.csv", Csv.BuildFranchisesCsv(franchises.Values));
+                await File.WriteAllTextAsync("./out/thesequelcommittee/franchise_members.csv", Csv.BuildMembersCsv(members));
                 Console.WriteLine("[Write] Updated base CSVs after fill.");
             }
             else
@@ -255,12 +255,12 @@ internal class Program
                 opt.GoodThreshold, opt.MinStreakLen, opt.FirstFilmGrace, opt.PreferOrigin);
 
             // Optional: write franchise_runs.csv for debugging
-            await File.WriteAllTextAsync("./out/franchise_runs.csv", Csv.BuildRunCsv(runs));
+            await File.WriteAllTextAsync("./out/thesequelcommittee/franchise_runs.csv", Csv.BuildRunCsv(runs));
             Console.WriteLine("[Write] franchise_runs.csv");
 
             await HtmlWriter.WriteHtmlReportsAsync(franchisesOut2, joined, runs, "tmdb", "https://image.tmdb.org/t/p/w342");
-            Console.WriteLine("[Write] ./out/html index + collection pages");
-            Console.WriteLine("[Done] All outputs written to ./out/");
+            Console.WriteLine("[Write] ./out/thesequelcommittee/html index + collection pages");
+            Console.WriteLine("[Done] All outputs written to ./out/thesequelcommittee/");
             return 0;
         }
         catch (Exception ex)
