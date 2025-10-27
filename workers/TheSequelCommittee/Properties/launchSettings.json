@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "Full Run (TMDb crawl + fill + aggregate + html)": {
+      "commandName": "Project",
+      "commandLineArgs": "--pages 800 --vote-count-min 150 --min-movies 2 --rating-source tmdb",
+      "environmentVariables": {
+        "TMDB_API_KEY": "27d763f53eac2011f3610996b3407421"
+      }
+    },
+    "Reaggregate + HTML (reuse local data; no API)": {
+      "commandName": "Project",
+      "commandLineArgs": "--reuse --no-fill --rating-source tmdb"
+    },
+    "HTML Only (rebuild visuals only; no API)": {
+      "commandName": "Project",
+      "commandLineArgs": "--html-only --rating-source tmdb"
+    }
+  }
+}
