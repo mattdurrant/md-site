@@ -97,7 +97,7 @@ jobs:
           SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
           # Playlists / config
-          STAR_PLAYLISTS:          "${{ secrets.STAR_PLAYLISTS }}"   # or use vars if you prefer
+          STAR_PLAYLISTS:          "${{ secrets.STAR_PLAYLISTS }}"
           FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
           EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
           PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
@@ -209,6 +209,32 @@ jobs:
           GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
         run: dotnet run -c Release
 
+      # ---------- Sequel Committee (/thesequelcommittee/html) ----------
+      - name: Locate SequelCommittee worker
+        id: locate_sequel
+        run: |
+          set -euo pipefail
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'SequelCommittee.Worker.csproj' -print -quit)"
+          if [ -z "$csproj" ]; then
+            echo "Could not find SequelCommittee.Worker.csproj" >&2
+            exit 1
+          fi
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (SequelCommittee)
+        run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
+
+      - name: Build (SequelCommittee)
+        run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
+
+      # Run without changing working-directory so relative paths land under $GITHUB_WORKSPACE/out
+      - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
+        env:
+          # Add any movie API keys you need, e.g.:
+          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
+
       # ---------- Copy static assets (CSS, etc.) ----------
       - name: Copy static assets
         run: |
@@ -225,7 +251,7 @@ jobs:
       - name: Inspect out dir (sanity)
         run: |
             echo "----- tree of out ------"
-            find "${{ github.workspace }}/out" -maxdepth 2 -type f -print
+            find "${{ github.workspace }}/out" -maxdepth 3 -type f -print | sed 's#^./##'
             echo "----- index.html head ---"
             head -n 40 "${{ github.workspace }}/out/index.html" || true
 
