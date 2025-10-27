@@ -56,7 +56,7 @@ jobs:
       - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
         shell: bash
         env:
-          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Feed (homepage) ----------
