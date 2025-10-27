@@ -1,0 +1,42 @@
+# IDEs
+.vs/
+.idea/
+.vscode/
+
+# Build + configs
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+artifacts/
+publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+*.rsuser
+
+# Tests / coverage / benches
+TestResults/
+*.coverage
+*.coveragexml
+.coverage
+BenchmarkDotNet.Artifacts/
+
+# ASP.NET static outputs (adjust to your project)
+wwwroot/dist/
+wwwroot/**/*.map
+wwwroot/**/*.min.*
+
+# Logs and misc
+*.log
+*.DS_Store
+Thumbs.db
+
+# If you have a generated site/docs folder, uncomment the one you use:
+# docs/
+# site/
+# public/
+# build/
+# dist/
