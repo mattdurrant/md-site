@@ -31,6 +31,51 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
+      # ---------- Sequel Committee (fail fast) ----------
+      - name: Locate SequelCommittee worker
+        id: locate_sequel
+        run: |
+          set -euo pipefail
+          # try the expected filename first
+          try1="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'SequelCommittee.Worker.csproj' -print -quit || true)"
+          # allow slight name variations
+          try2="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*Worker*.csproj' -print -quit || true)"
+          try3="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*.csproj' -print -quit || true)"
+          # legacy name fallback
+          try4="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'TheSequelCommittee*.csproj' -print -quit || true)"
+
+          csproj="${try1:-}"
+          if [ -z "${csproj}" ]; then csproj="${try2:-}"; fi
+          if [ -z "${csproj}" ]; then csproj="${try3:-}"; fi
+          if [ -z "${csproj}" ]; then csproj="${try4:-}"; fi
+
+          echo "Attempted paths:"
+          echo "  try1=$try1"
+          echo "  try2=$try2"
+          echo "  try3=$try3"
+          echo "  try4=$try4"
+
+          if [ -z "${csproj}" ]; then
+            echo "❌ Could not find any SequelCommittee .csproj. Ensure the project is committed and the filename matches." >&2
+            exit 1
+          fi
+
+          echo "✅ Using: $csproj"
+          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
+          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore (SequelCommittee)
+        run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
+
+      - name: Build (SequelCommittee)
+        run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
+
+      - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
+        env:
+          # Add any movie API keys you need, for example:
+          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
+
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
         id: locate_feed
@@ -89,22 +134,17 @@ jobs:
       - name: Run Albums worker (writes /albums and /ebay)
         working-directory: ${{ steps.locate_albums.outputs.projdir }}
         env:
-          # Output
           OUTPUT_DIR:              ${{ github.workspace }}/out/albums
           EBAY_OUTPUT_DIR:         ${{ github.workspace }}/out
-          # Spotify
           SPOTIFY_CLIENT_ID:       ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET:   ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN:   ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-          # Playlists / config
           STAR_PLAYLISTS:          "${{ secrets.STAR_PLAYLISTS }}"
           FILLER_PLAYLIST_ID:      ${{ vars.FILLER_PLAYLIST_ID }}
           EXCLUDED_PLAYLIST_ID:    ${{ vars.EXCLUDED_PLAYLIST_ID }}
           PURCHASED_PLAYLIST_ID:   ${{ vars.PURCHASED_PLAYLIST_ID }}
           TOP_N:                   ${{ vars.TOP_N }}
-          # eBay search scope after purchased filtering
           EBAY_ALBUM_LIMIT:        250
-          # eBay credentials / options
           EBAY_CLIENT_ID:          ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET:      ${{ secrets.EBAY_CLIENT_SECRET }}
           EBAY_MARKETPLACE:        ${{ vars.EBAY_MARKETPLACE }}
@@ -208,31 +248,6 @@ jobs:
           OUTPUT_DIR: ${{ github.workspace }}/out
           GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
         run: dotnet run -c Release
-
-      # ---------- Sequel Committee (/thesequelcommittee/html) ----------
-      - name: Locate SequelCommittee worker
-        id: locate_sequel
-        run: |
-          set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'SequelCommittee.Worker.csproj' -print -quit)"
-          if [ -z "$csproj" ]; then
-            echo "Could not find SequelCommittee.Worker.csproj" >&2
-            exit 1
-          fi
-          echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
-          echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      - name: Restore (SequelCommittee)
-        run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
-
-      - name: Build (SequelCommittee)
-        run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
-
-      # Run without changing working-directory so relative paths land under $GITHUB_WORKSPACE/out
-      - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-        run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Copy static assets (CSS, etc.) ----------
       - name: Copy static assets
