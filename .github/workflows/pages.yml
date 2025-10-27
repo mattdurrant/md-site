@@ -24,7 +24,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Speed up dotnet CI a touch
+      # Speed up dotnet a touch
       - name: Speed up dotnet
         shell: bash
         run: |
@@ -39,15 +39,13 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- TheSequelCommittee ----------
+      # ---------- TheSequelCommittee (fail fast) ----------
       - name: Locate TheSequelCommittee worker
         id: locate_sequel
         shell: bash
         run: |
           set -euo pipefail
-          # exact filename first
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -name 'TheSequelCommittee.Worker.csproj' -print -quit || true)"
-          # fallbacks (in case you tweak the name later)
           if [ -z "$csproj" ]; then csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*Worker*.csproj' -print -quit || true)"; fi
           if [ -z "$csproj" ]; then
             echo "Could not find TheSequelCommittee.Worker.csproj"; exit 1
@@ -55,7 +53,7 @@ jobs:
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
 
-      # Cache TheSequelCommittee CSVs so daily runs reuse data
+      # Cache Sequel CSVs so daily runs reuse data
       - name: Cache Sequel data CSVs
         uses: actions/cache@v4
         with:
@@ -68,40 +66,6 @@ jobs:
           restore-keys: |
             sequel-csv-${{ runner.os }}-
 
-      - name: Locate Sequel outputs (diagnostic)
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "---- listing candidate output roots ----"
-          for p in \
-            "${{ steps.locate_sequel.outputs.projdir }}/out" \
-            "${{ github.workspace }}/out"
-          do
-            echo ">> $p"
-            [ -d "$p" ] && find "$p" -maxdepth 4 -type f -print || echo "(missing)"
-          done
-
-      - name: Collect Sequel site into repo out (/thesequelcommittee)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
-          cands=(
-            "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
-            "${{ github.workspace }}/out/sequelcommittee"
-          )
-          src=""
-          for d in "${cands[@]}"; do
-            if [ -d "$d" ]; then src="$d"; break; fi
-          done
-          if [ -z "$src" ]; then
-            echo "ERROR: Could not find Sequel HTML output in:"
-            printf '  - %s\n' "${cands[@]}"
-            exit 1
-          fi
-          echo "Copying from: $src"
-          rsync -a "$src"/ "${{ github.workspace }}/out/thesequelcommittee"/
-
       - name: Restore (TheSequelCommittee)
         shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
@@ -110,46 +74,80 @@ jobs:
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
 
-      # Decide depth: Monday = deep refresh, other days = incremental
-      - name: Decide depth (Monday = deep)
+      # Sunday = deep refresh, other days = incremental
+      - name: Decide depth (Sunday = deep)
         shell: bash
         run: |
-          if [ "$(date -u +%u)" = "1" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+          if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
 
-      - name: Run TheSequelCommittee worker (writes to /out/thesequelcommittee/html)
+      - name: Run TheSequelCommittee worker
         shell: bash
+        working-directory: ${{ steps.locate_sequel.outputs.projdir }}
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           set -euo pipefail
           if [ "${DEEP:-0}" = "1" ]; then
-            # Weekly deep refresh: broader discovery + fill + refresh ratings
             ARGS="--pages 200 --min-movies 2 --allow-fill --refresh-ratings build-all"
           else
-            # Daily incremental: small discovery, reuse cached CSVs
             ARGS="--pages 10 --min-movies 2 --reuse build-all"
           fi
-          echo "Running TheSequelCommittee with: $ARGS"
-          dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build -- $ARGS
+          echo "Running TheSequelCommittee with: $ARGS (cwd=$(pwd))"
+          dotnet run -c Release --no-build -- $ARGS
 
-      - name: Collect Sequel site into repo out
+      # Diagnose where outputs landed
+      - name: Locate Sequel outputs (diagnostic)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "---- search for index.html under any out/ ----"
+          find "${{ github.workspace }}" -type f -path "*/out/*/index.html" -print || true
+          echo "---- list top-level out dirs ----"
+          find "${{ github.workspace }}" -type d -maxdepth 4 -name out -print || true
+
+      # Copy from wherever the app wrote -> /out/thesequelcommittee (for clean URL)
+      - name: Collect Sequel site into repo out (/thesequelcommittee)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
-          # Preferred: if code writes /out/sequelcommittee under the project dir
-          src1="${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
-          # Fallbacks
-          src2="${{ steps.locate_sequel.outputs.projdir }}/out/thesequelcommittee/html"
-          src3="${{ steps.locate_sequel.outputs.projdir }}/out/html"
-          if   [ -d "$src1" ]; then rsync -a "$src1"/ "${{ github.workspace }}/out/thesequelcommittee"/
-          elif [ -d "$src2" ]; then rsync -a "$src2"/ "${{ github.workspace }}/out/thesequelcommittee"/
-          elif [ -d "$src3" ]; then rsync -a "$src3"/ "${{ github.workspace }}/out/thesequelcommittee"/
-          else
-            echo "ERROR: Could not find Sequel HTML output"
-            find "${{ steps.locate_sequel.outputs.projdir }}/out" -maxdepth 3 -type d -print
+
+          candidates=(
+            "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
+            "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee/html"
+            "${{ steps.locate_sequel.outputs.projdir }}/out/html"
+            "${{ github.workspace }}/out/sequelcommittee"
+            "${{ github.workspace }}/out/sequelcommittee/html"
+            "${{ github.workspace }}/out/html"
+          )
+
+          src=""
+          for d in "${candidates[@]}"; do
+            if [ -d "$d" ] && [ -f "$d/index.html" ]; then src="$d"; break; fi
+          done
+
+          if [ -z "$src" ]; then
+            echo "Falling back to search…"
+            src="$(find "${{ github.workspace }}" -type d \( -path "*/out/*/sequelcommittee/html" -o -path "*/out/*/sequelcommittee" \) -exec test -f "{}/index.html" \; -print -quit || true)"
+          fi
+
+          if [ -z "$src" ]; then
+            src="$(find "${{ github.workspace }}" -type d -path "*/out/*/html" -exec test -f "{}/index.html" \; -print -quit || true)"
+          fi
+
+          if [ -z "$src" ]; then
+            echo "ERROR: Could not find Sequel HTML output."
+            echo "Checked candidates:"
+            printf '  - %s\n' "${candidates[@]}"
+            echo "Searched repo for */out/*/(sequelcommittee[/html]|html) with index.html"
             exit 1
           fi
+
+          echo "Copying from: $src"
+          rsync -a "$src"/ "${{ github.workspace }}/out/thesequelcommittee"/
+
+          echo "Resulting index:"
+          ls -l "${{ github.workspace }}/out/thesequelcommittee/index.html" || true
 
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
@@ -358,7 +356,7 @@ jobs:
           head -n 40 "${{ github.workspace }}/out/thesequelcommittee/index.html" || true
           echo "----- site index head ---"
           head -n 40 "${{ github.workspace }}/out/index.html" || true
-      
+
       - name: Write CNAME
         shell: bash
         run: echo "www.mattdurrant.com" > "${{ github.workspace }}/out/CNAME"
