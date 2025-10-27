@@ -24,6 +24,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # Speed up dotnet CI a touch
+      - name: Speed up dotnet
+        shell: bash
+        run: |
+          echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" >> $GITHUB_ENV
+          echo "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1" >> $GITHUB_ENV
+
       # Debug helper
       - name: Show repo layout
         shell: bash
@@ -32,7 +39,7 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-     # ---------- TheSequelCommittee (fail fast) ----------
+      # ---------- TheSequelCommittee (fail fast) ----------
       - name: Locate TheSequelCommittee worker
         id: locate_sequel
         shell: bash
@@ -47,20 +54,49 @@ jobs:
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-        
+
+      # Cache TheSequelCommittee CSVs so daily runs reuse data
+      - name: Cache Sequel data CSVs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/out/*.csv
+            ${{ github.workspace }}/out/**/*.csv
+            ${{ steps.locate_sequel.outputs.projdir }}/out/*.csv
+            ${{ steps.locate_sequel.outputs.projdir }}/out/**/*.csv
+          key: sequel-csv-${{ runner.os }}-${{ hashFiles('**/TheSequelCommittee.Worker.csproj') }}
+          restore-keys: |
+            sequel-csv-${{ runner.os }}-
+
       - name: Restore (TheSequelCommittee)
         shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
-      
+
       - name: Build (TheSequelCommittee)
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
-      
+
+      # Decide depth: Sunday = deep refresh, other days = incremental
+      - name: Decide depth (Sunday = deep)
+        shell: bash
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+
       - name: Run TheSequelCommittee worker (writes to /out/thesequelcommittee/html)
         shell: bash
         env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}    # ✅ uncommented
-        run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "${DEEP:-0}" = "1" ]; then
+            # Weekly deep refresh: broader discovery + fill + refresh ratings
+            ARGS="--pages 200 --min-movies 2 --allow-fill --refresh-ratings build-all"
+          else
+            # Daily incremental: small discovery, reuse cached CSVs
+            ARGS="--pages 10 --min-movies 2 --reuse build-all"
+          fi
+          echo "Running TheSequelCommittee with: $ARGS"
+          dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build -- $ARGS
 
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
@@ -265,7 +301,9 @@ jobs:
         run: |
           echo "----- tree of out ------"
           find "${{ github.workspace }}/out" -maxdepth 3 -type f -print
-          echo "----- index.html head ---"
+          echo "----- sequel index head ---"
+          head -n 40 "${{ github.workspace }}/out/thesequelcommittee/html/index.html" || true
+          echo "----- site index head ---"
           head -n 40 "${{ github.workspace }}/out/index.html" || true
 
       - name: Write CNAME
