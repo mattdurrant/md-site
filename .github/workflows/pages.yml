@@ -98,6 +98,25 @@ jobs:
           echo "Running TheSequelCommittee with: $ARGS"
           dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build -- $ARGS
 
+      - name: Collect Sequel site into repo out
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
+          # Preferred: if code writes /out/sequelcommittee under the project dir
+          src1="${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
+          # Fallbacks
+          src2="${{ steps.locate_sequel.outputs.projdir }}/out/thesequelcommittee/html"
+          src3="${{ steps.locate_sequel.outputs.projdir }}/out/html"
+          if   [ -d "$src1" ]; then rsync -a "$src1"/ "${{ github.workspace }}/out/thesequelcommittee"/
+          elif [ -d "$src2" ]; then rsync -a "$src2"/ "${{ github.workspace }}/out/thesequelcommittee"/
+          elif [ -d "$src3" ]; then rsync -a "$src3"/ "${{ github.workspace }}/out/thesequelcommittee"/
+          else
+            echo "ERROR: Could not find Sequel HTML output"
+            find "${{ steps.locate_sequel.outputs.projdir }}/out" -maxdepth 3 -type d -print
+            exit 1
+          fi
+
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
         id: locate_feed
