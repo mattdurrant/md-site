@@ -14,6 +14,7 @@ internal class Program
   <h1><a href="https://www.mattdurrant.com">Matt Durrant</a></h1>
 </header>
 <a href="/fitness/">I run around</a>, <a href="/books/">I read bad books</a>, <a href="/photos/">I take pictures on my phone</a>.<br>
+<a href="https://www.mattdurrant.com/thesequelcommittee">A member of the Sequel Committee</a>.<br>
 <a href="/albums/">Here are my favourite albums</a> <a href="/ebay/">(which I'm buying on vinyl).</a><br>
 <a href="https://wa.link/nsysbp">Contact me on WhatsApp.</a><a href="mailto:matt@mattdurrant.com"> I largely ignore email</a> <a href="https://www.facebook.com/mattdurrant">and Facebook.</a>
 <br>
