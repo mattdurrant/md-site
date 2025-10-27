@@ -36,24 +36,17 @@ jobs:
         id: locate_sequel
         run: |
           set -euo pipefail
-          # try the expected filename first
           try1="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'SequelCommittee.Worker.csproj' -print -quit || true)"
-          # allow slight name variations
           try2="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*Worker*.csproj' -print -quit || true)"
           try3="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname '*Sequel*.csproj' -print -quit || true)"
-          # legacy name fallback
           try4="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'TheSequelCommittee*.csproj' -print -quit || true)"
 
-          csproj="${try1:-}"
-          if [ -z "${csproj}" ]; then csproj="${try2:-}"; fi
-          if [ -z "${csproj}" ]; then csproj="${try3:-}"; fi
-          if [ -z "${csproj}" ]; then csproj="${try4:-}"; fi
+          csproj="${try1:-}"; [ -z "$csproj" ] && csproj="${try2:-}"
+          [ -z "$csproj" ] && csproj="${try3:-}"
+          [ -z "$csproj" ] && csproj="${try4:-}"
 
-          echo "Attempted paths:"
-          echo "  try1=$try1"
-          echo "  try2=$try2"
-          echo "  try3=$try3"
-          echo "  try4=$try4"
+          echo "Attempted:"
+          echo "  try1=$try1"; echo "  try2=$try2"; echo "  try3=$try3"; echo "  try4=$try4"
 
           if [ -z "${csproj}" ]; then
             echo "❌ Could not find any SequelCommittee .csproj. Ensure the project is committed and the filename matches." >&2
@@ -70,10 +63,10 @@ jobs:
       - name: Build (SequelCommittee)
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
 
+      # Run from repo root so relative paths write into out/thesequelcommittee/html
       - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
         env:
-          # Add any movie API keys you need, for example:
-          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}  # add if you use one
         run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Feed (homepage) ----------
@@ -83,8 +76,7 @@ jobs:
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Feed.Worker.csproj" >&2
-            exit 1
+            echo "Could not find Feed.Worker.csproj" >&2; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
@@ -99,16 +91,13 @@ jobs:
         working-directory: ${{ steps.locate_feed.outputs.projdir }}
         env:
           OUTPUT_DIR: ${{ github.workspace }}/out
-          # Strava (optional)
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
-          # Dropbox (optional)
           DROPBOX_APP_KEY:        ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET:     ${{ secrets.DROPBOX_APP_SECRET }}
           DROPBOX_REFRESH_TOKEN:  ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_PHOTOS_FOLDER:  '/Public/Photos'
-          # Goodreads (optional)
           GOODREADS_RSS_URL: "${{ secrets.GOODREADS_RSS_URL }}"
         run: dotnet run -c Release
 
@@ -119,8 +108,7 @@ jobs:
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Albums.Worker.csproj" >&2
-            exit 1
+            echo "Could not find Albums.Worker.csproj" >&2; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
@@ -163,8 +151,7 @@ jobs:
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Fitness.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-              echo "Could not find Fitness.Worker.csproj" >&2
-              exit 1
+              echo "Could not find Fitness.Worker.csproj" >&2; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
@@ -191,8 +178,7 @@ jobs:
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Photos.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Photos.Worker.csproj" >&2
-            exit 1
+            echo "Could not find Photos.Worker.csproj" >&2; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
@@ -220,8 +206,7 @@ jobs:
           set -euo pipefail
           csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Goodreads.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
-            echo "Could not find Goodreads.Worker.csproj" >&2
-            exit 1
+            echo "Could not find Goodreads.Worker.csproj" >&2; exit 1
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
@@ -259,8 +244,6 @@ jobs:
       # ---------- Configure & Publish ----------
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Inspect out dir (sanity)
         run: |
@@ -287,4 +270,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
-
