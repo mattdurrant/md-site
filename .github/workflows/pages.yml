@@ -231,8 +231,7 @@ jobs:
       # Run without changing working-directory so relative paths land under $GITHUB_WORKSPACE/out
       - name: Run SequelCommittee worker (writes to /out/thesequelcommittee/html)
         env:
-          # Add any movie API keys you need, e.g.:
-          # TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: dotnet run --project "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-build
 
       # ---------- Copy static assets (CSS, etc.) ----------
