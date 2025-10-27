@@ -76,11 +76,11 @@ jobs:
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
 
-      # Decide depth: Sunday = deep refresh, other days = incremental
-      - name: Decide depth (Sunday = deep)
+      # Decide depth: Monday = deep refresh, other days = incremental
+      - name: Decide depth (Monday = deep)
         shell: bash
         run: |
-          if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+          if [ "$(date -u +%u)" = "1" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
 
       - name: Run TheSequelCommittee worker (writes to /out/thesequelcommittee/html)
         shell: bash
