@@ -7,16 +7,10 @@ namespace TheSequelCommittee.Worker;
 
 public static class HtmlWriter
 {
-    // --- Score bands (percent) ---
     private const double CLASSIC = 80.0;
     private const double GREAT = 70.0;
-    private const double POOR = 50.0;
-
-    // Icons
     private const string ICON_ACCEPT = "✅";
     private const string ICON_DENY = "🚫";
-
-    // UI constants
     private const string PosterBaseDefault = "https://image.tmdb.org/t/p/w342";
 
     public static async Task WriteHtmlReportsAsync(
@@ -26,11 +20,10 @@ public static class HtmlWriter
         string ratingSource,
         string posterBaseUrl = PosterBaseDefault)
     {
-        // >>> Output folder updated <<<
-        var outDir = Path.Combine("out", "thesequelcommittee");
+        // >>> Clean URLs: write to /out/sequelcommittee
+        var outDir = Path.Combine("out", "sequelcommittee");
         Directory.CreateDirectory(outDir);
 
-        // Lookups
         var runById = runs.ToDictionary(r => r.CollectionId, r => r);
         var releasedByCid = moviesJoined
             .GroupBy(m => m.CollectionId)
@@ -41,9 +34,9 @@ public static class HtmlWriter
                       .ToList()
             );
 
-        // Upcoming from franchise_members.csv
+        // Upcoming from franchise_members.csv (repo-root out/)
         Dictionary<int, List<MemberRow>> upcomingByCid = new();
-        var membersCsvPath = Path.Combine("out", "thesequelcommittee", "franchise_members.csv");
+        var membersCsvPath = Path.Combine("out", "franchise_members.csv");
         if (File.Exists(membersCsvPath))
         {
             try
@@ -68,7 +61,6 @@ public static class HtmlWriter
             }
         }
 
-        // ---------- CSS ----------
         string Css = @"
 :root { color-scheme: dark; }
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;background:#0a0a0a;color:#e7e7e7}
@@ -76,31 +68,17 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;ba
 h1{font-size:28px;margin:0 0 6px}
 a{color:#8ab4ff;text-decoration:none}
 a:hover{text-decoration:underline}
-
-/* Grids */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin:6px 0 8px}
 .gridUpcoming{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin:6px 0 28px}
-
-/* Cards */
 .card{position:relative;border-radius:14px;overflow:hidden;background:#151515;box-shadow:0 2px 12px rgba(0,0,0,.45)}
 .poster{aspect-ratio:2/3;background:#1f1f1f;display:grid;place-items:center;position:relative}
 .poster img{width:100%;height:100%;object-fit:cover;display:block}
-
-/* Overlays */
-.cap{
-  position:absolute;left:0;right:0;bottom:0;padding:10px 10px 12px;
-  background:linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.35) 60%, rgba(0,0,0,0));
-  text-shadow:0 1px 2px rgba(0,0,0,.8);
-}
+.cap{position:absolute;left:0;right:0;bottom:0;padding:10px 10px 12px;background:linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.35) 60%, rgba(0,0,0,0));text-shadow:0 1px 2px rgba(0,0,0,.8)}
 .ttl{font-weight:700;font-size:15px;line-height:1.25;margin:0 0 4px}
 .meta{font-size:12px;color:#e1e1e1}
-
-/* Visual */
 .out{filter:grayscale(1) brightness(0.7) opacity(0.5);}
 .crown{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);padding:2px 6px;border-radius:999px;font-size:12px;z-index:4}
 .idx{position:absolute;top:6px;left:8px;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:999px;font-size:12px}
-
-/* Table */
 .section{margin:18px 0 10px;font-weight:600}
 .tablewrap{overflow:auto;border:1px solid #262626;border-radius:12px;background:#111}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -109,26 +87,16 @@ th{position:sticky;top:0;background:#141414}
 tr:hover{background:#181818}
 td.title{white-space:normal}
 .badgeMini{display:inline-block;min-width:28px;text-align:center;padding:2px 6px;border:1px solid #2a2a2a;border-radius:999px;background:#151515;font-size:12px}
-
-/* Index grid of collections */
 .gridIdx{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
 .box{position:relative;display:block;border-radius:14px;padding:16px 18px;background:#151515;border:1px solid #262626}
 .box:hover{border-color:#3a3a3a;background:#171717}
 .box .ttl{font-weight:700}
-
-/* Index header bits */
 .kicker{color:#bdbdbd;margin:0 0 16px;font-size:14px}
 .footer-note{color:#a9a9a9;margin-top:22px;font-size:12px;text-align:right}
-
-/* Index two groups */
 .groupTitle{margin:22px 0 4px;font-weight:800;color:#e5e5e5}
 .groupSub{margin:0 0 12px;color:#bdbdbd}
-
-/* Seal under title */
 .sealLine{color:#bdbdbd;margin:4px 0 12px;font-size:14px}
 .sealBadge{display:inline-block;padding:6px 10px;border:1px solid #2a2a2a;border-radius:999px;background:#161616}
-
-/* Minor headings */
 .subhead{margin:18px 0 8px;color:#cfcfcf;font-weight:700}
 ";
 
@@ -138,16 +106,14 @@ td.title{white-space:normal}
             releasedByCid.TryGetValue(f.CollectionId, out var released);
             runById.TryGetValue(f.CollectionId, out var run);
             upcomingByCid.TryGetValue(f.CollectionId, out var upcoming);
-
             released ??= new();
 
-            // Base scores (no boost)
             var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
 
-            // Colouring rule: +2% to FIRST film ONLY if there are NO other films ≥70
-            bool anyOtherGreatOrClassic = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
+            // +2% to first film ONLY if there are NO other films ≥70
+            bool anyOther70 = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
             var colourScores = baseScores.ToArray();
-            if (!anyOtherGreatOrClassic && colourScores.Length > 0 && colourScores[0].HasValue)
+            if (!anyOther70 && colourScores.Length > 0 && colourScores[0].HasValue)
             {
                 double boosted = colourScores[0]!.Value + 2.0;
                 if (boosted > 100.0) boosted = 100.0;
@@ -155,11 +121,8 @@ td.title{white-space:normal}
             }
 
             int? peakIdx = run?.PeakIndex;
-
-            // Approved / Denied verdict (STRICT ≥70 with its own first-film +2% rule)
             var verdict = EvaluateAcceptedDenied(released, ratingSource);
 
-            // ---------- HTML ----------
             var sb = new StringBuilder();
             sb.Append("<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
             sb.Append("<title>").Append(Utils.CsvEscape(SimplifyName(f.Name))).Append("</title><style>").Append(Css).Append("</style>");
@@ -168,22 +131,21 @@ td.title{white-space:normal}
             sb.Append("<a href='./index.html' style='color:#8ab4ff'>&larr; Back</a>");
             sb.Append("<h1>").Append(Utils.CsvEscape(SimplifyName(f.Name))).Append("</h1>");
 
-            // Seal under the title: label only
             sb.Append("<div class='sealLine'><span class='sealBadge'>")
               .Append(VerdictIcon(verdict))
               .Append("&nbsp;")
               .Append(Utils.CsvEscape(VerdictLabel(verdict)))
               .Append("</span></div>");
 
-            // --- Whole collection (no heading), release order, colour if >=70 (after first-film rule), else grey ---
+            // Full collection (release order): colour if >=70 after first-film rule; else grey
             if (released.Count > 0)
             {
                 sb.Append("<div class='grid'>");
                 for (int i = 0; i < released.Count; i++)
                 {
                     bool isBest = (peakIdx == i);
-                    bool greyOut = !(colourScores[i].HasValue && colourScores[i]!.Value >= GREAT); // >=70 coloured
-                    EmitCard(sb, released[i], i, isBest, inStreak: false, greyOut: greyOut, tiny: false, posterBaseUrl);
+                    bool greyOut = !(colourScores[i].HasValue && colourScores[i]!.Value >= GREAT);
+                    EmitCard(sb, released[i], i, isBest, greyOut, posterBaseUrl);
                 }
                 sb.Append("</div>");
             }
@@ -192,8 +154,7 @@ td.title{white-space:normal}
             if (upcoming != null && upcoming.Count > 0)
             {
                 sb.Append("<div class='subhead'>Upcoming</div><div class='gridUpcoming'>");
-                foreach (var u in upcoming)
-                    EmitCardUpcoming(sb, u, posterBaseUrl);
+                foreach (var u in upcoming) EmitCardUpcoming(sb, u, posterBaseUrl);
                 sb.Append("</div>");
             }
 
@@ -216,10 +177,7 @@ td.title{white-space:normal}
 
                 sb.Append("<div class='section'>Best to Worst Films in the Collection</div>");
                 sb.Append("<div class='tablewrap'><table><thead><tr>");
-                sb.Append("<th style='width:64px'>Rank</th>");
-                sb.Append("<th>Title</th>");
-                sb.Append("<th style='width:120px'>Release</th>");
-                sb.Append("<th style='width:100px'>Rating</th>");
+                sb.Append("<th style='width:64px'>Rank</th><th>Title</th><th style='width:120px'>Release</th><th style='width:100px'>Rating</th>");
                 sb.Append("</tr></thead><tbody>");
 
                 int rank = 0;
@@ -247,12 +205,10 @@ td.title{white-space:normal}
             await File.WriteAllTextAsync(Path.Combine(outDir, $"{f.CollectionId}.html"), sb.ToString());
         }
 
-        // ---------- Index page (2 groups) ----------
+        // ---------- Index ----------
         string lastUpdatedUk = GetUkNow().ToString("dd'/'MM'/'yy", CultureInfo.GetCultureInfo("en-GB"));
-
         var accepted = new List<FranchiseAgg>();
         var denied = new List<FranchiseAgg>();
-
         foreach (var f in franchises)
         {
             releasedByCid.TryGetValue(f.CollectionId, out var released);
@@ -260,22 +216,21 @@ td.title{white-space:normal}
             var cat = EvaluateAcceptedDenied(released, ratingSource);
             if (cat == Verdict.Accepted) accepted.Add(f); else denied.Add(f);
         }
-
         accepted = accepted.OrderBy(x => SimplifyName(x.Name)).ToList();
         denied = denied.OrderBy(x => SimplifyName(x.Name)).ToList();
+
+        int total = franchises.Count;
+        int ok = accepted.Count;
+        string rateStr = (total > 0 ? (ok * 100.0 / total) : 0.0).ToString("0.0", CultureInfo.InvariantCulture);
 
         var idx = new StringBuilder();
         idx.Append("<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
         idx.Append("<title>The Sequel Committee</title><style>").Append(Css).Append("</style><body><div class='wrap'>");
-
-        // Title + count
         idx.Append("<h1>The Sequel Committee</h1>");
-        idx.Append("<p class='kicker'>").Append(franchises.Count).Append(" collections</p>");
+        idx.Append("<p class='kicker'>").Append(total).Append(" collections · Committee approval rate: ").Append(rateStr).Append("%</p>");
 
-        // Accepted
         idx.Append("<div class='groupTitle'>").Append(ICON_ACCEPT).Append(" Accepted by the Committee</div>");
-        idx.Append("<div class='groupSub'>Sequels approved!</div>");
-        idx.Append("<div class='gridIdx'>");
+        idx.Append("<div class='groupSub'>Sequels approved!</div><div class='gridIdx'>");
         foreach (var f in accepted)
         {
             var nm = Utils.CsvEscape(SimplifyName(f.Name));
@@ -283,10 +238,8 @@ td.title{white-space:normal}
         }
         idx.Append("</div>");
 
-        // Denied
         idx.Append("<div class='groupTitle' style='margin-top:28px;'>").Append(ICON_DENY).Append(" Denied by the Committee</div>");
-        idx.Append("<div class='groupSub'>Congratulations, you've ruined it.</div>");
-        idx.Append("<div class='gridIdx'>");
+        idx.Append("<div class='groupSub'>Congratulations, you've ruined it.</div><div class='gridIdx'>");
         foreach (var f in denied)
         {
             var nm = Utils.CsvEscape(SimplifyName(f.Name));
@@ -294,14 +247,11 @@ td.title{white-space:normal}
         }
         idx.Append("</div>");
 
-        // Last updated footer
         idx.Append("<div class='footer-note'>Last updated ").Append(lastUpdatedUk).Append("</div>");
-
         idx.Append("</div></body></html>");
         await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), idx.ToString());
     }
 
-    // ---------- Approved / Denied (STRICT ≥70 with conditional first-film +2%) ----------
     private enum Verdict { Accepted, Denied }
 
     private static Verdict EvaluateAcceptedDenied(List<MovieJoined> released, string ratingSource)
@@ -310,34 +260,31 @@ td.title{white-space:normal}
 
         var baseScores = released.Select(m => GetBaseScore(m, ratingSource)).ToList();
 
-        // First-film +2% ONLY if there are NO other ≥70 films
-        bool anyOtherGreat = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
+        // +2% to first film ONLY if there are NO other ≥70 films
+        bool anyOther70 = baseScores.Skip(1).Any(s => s.HasValue && s.Value >= GREAT);
         var adj = baseScores.ToArray();
-        if (!anyOtherGreat && adj.Length > 0 && adj[0].HasValue)
+        if (!anyOther70 && adj.Length > 0 && adj[0].HasValue)
         {
             double boosted = adj[0]!.Value + 2.0;
             if (boosted > 100.0) boosted = 100.0;
             adj[0] = boosted;
         }
 
-        bool allGreatOrClassic = adj.All(s => s.HasValue && s.Value >= GREAT);
-        return allGreatOrClassic ? Verdict.Accepted : Verdict.Denied;
+        bool all70 = adj.All(s => s.HasValue && s.Value >= GREAT);
+        return all70 ? Verdict.Accepted : Verdict.Denied;
     }
 
     private static string VerdictIcon(Verdict v) => v == Verdict.Accepted ? ICON_ACCEPT : ICON_DENY;
     private static string VerdictLabel(Verdict v) => v == Verdict.Accepted ? "Approved by the Committee" : "Denied by the Committee";
 
-    // ---------- Helpers ----------
     private static string SimplifyName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return name;
         var t = name.Trim();
-        if (t.EndsWith(" Collection", StringComparison.OrdinalIgnoreCase))
-            return t[..^" Collection".Length].TrimEnd();
+        if (t.EndsWith(" Collection", StringComparison.OrdinalIgnoreCase)) return t[..^" Collection".Length].TrimEnd();
         return t;
     }
 
-    // Raw score from chosen source (no boost)
     private static double? GetBaseScore(MovieJoined m, string src)
     {
         if (src == "rt_only") return m.RtCriticPct;
@@ -361,29 +308,16 @@ td.title{white-space:normal}
                 var tz = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
                 return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
             }
-            catch
-            {
-                return DateTime.UtcNow;
-            }
+            catch { return DateTime.UtcNow; }
         }
     }
 
-    private static void EmitCard(
-        StringBuilder sb,
-        MovieJoined m,
-        int seriesIndex,
-        bool isBest,
-        bool inStreak,
-        bool greyOut,
-        bool tiny,
-        string posterBaseUrl)
+    private static void EmitCard(StringBuilder sb, MovieJoined m, int seriesIndex, bool isBest, bool greyOut, string posterBaseUrl)
     {
         string link = TmdbMovieUrl(m.MovieTmdbId);
         string posterUrl = string.IsNullOrWhiteSpace(m.PosterPath)
             ? ""
-            : (m.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? m.PosterPath!
-                : $"{posterBaseUrl}{m.PosterPath}");
+            : (m.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? m.PosterPath! : $"{posterBaseUrl}{m.PosterPath}");
         string ukDate = m.ReleaseDate?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "";
 
         var cls = new List<string> { "card" };
@@ -397,8 +331,8 @@ td.title{white-space:normal}
             sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(m.Title)).Append("' src='").Append(posterUrl).Append("'>");
         else
             sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
-        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(m.Title)).Append("</div>")
-          .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
+        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(m.Title)).Append("</div><div class='meta'>")
+          .Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
     }
 
     private static void EmitCardUpcoming(StringBuilder sb, MemberRow u, string posterBaseUrl)
@@ -406,9 +340,7 @@ td.title{white-space:normal}
         string link = TmdbMovieUrl(u.MovieTmdbId);
         string posterUrl = string.IsNullOrWhiteSpace(u.PosterPath)
             ? ""
-            : (u.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? u.PosterPath!
-                : $"{posterBaseUrl}{u.PosterPath}");
+            : (u.PosterPath!.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? u.PosterPath! : $"{posterBaseUrl}{u.PosterPath}");
         string ukDate = Utils.ParseDate(u.ReleaseDate)?.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("en-GB")) ?? "TBC";
 
         sb.Append("<article class='card'><div class='badgeUp'>Upcoming</div>");
@@ -417,8 +349,8 @@ td.title{white-space:normal}
             sb.Append("<img loading='lazy' alt='").Append(Utils.CsvEscape(u.Title)).Append("' src='").Append(posterUrl).Append("'>");
         else
             sb.Append("<div style='color:#bbb;font-size:12px'>No image</div>");
-        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(u.Title)).Append("</div>")
-          .Append("<div class='meta'>").Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
+        sb.Append("<div class='cap'><div class='ttl'>").Append(Utils.CsvEscape(u.Title)).Append("</div><div class='meta'>")
+          .Append(Utils.CsvEscape(ukDate)).Append("</div></div></a></article>");
     }
 
     private static string TmdbMovieUrl(int id) => $"https://www.themoviedb.org/movie/{id}";
