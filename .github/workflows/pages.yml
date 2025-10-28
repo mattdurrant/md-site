@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${DEEP:-0}" = "1" ]; then
-            ARGS="--pages 250 --min-movies 2 --allow-fill --no-prune build-all"
+            ARGS="--pages 800 --min-movies 2 --allow-fill --no-prune build-all"
           else
             ARGS="--pages 10 --min-movies 2 --reuse --no-prune build-all"
           fi
