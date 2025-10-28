@@ -39,7 +39,7 @@ jobs:
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
           echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
 
-      # ---------- TheSequelCommittee (fail fast) ----------
+      # ---------- TheSequelCommittee ----------
       - name: Locate TheSequelCommittee worker
         id: locate_sequel
         shell: bash
@@ -52,35 +52,43 @@ jobs:
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-
-      # Cache Sequel CSVs so daily runs reuse data
-      - name: Cache Sequel data CSVs
-        uses: actions/cache@v4
+      
+      # 1) Pull forward last run's CSVs (artifact is mutable across runs)
+      - name: Restore Sequel data (artifact)
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ${{ github.workspace }}/out/*.csv
-            ${{ github.workspace }}/out/**/*.csv
-            ${{ steps.locate_sequel.outputs.projdir }}/out/*.csv
-            ${{ steps.locate_sequel.outputs.projdir }}/out/**/*.csv
-          key: sequel-csv-${{ runner.os }}-${{ hashFiles('**/TheSequelCommittee.Worker.csproj') }}
-          restore-keys: |
-            sequel-csv-${{ runner.os }}-
-
+          name: sequel-data
+          path: ${{ steps.locate_sequel.outputs.projdir }}/out
+        continue-on-error: true
+      
+      - name: Show restored CSVs
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="${{ steps.locate_sequel.outputs.projdir }}/out"
+          if [ -d "$dir" ]; then
+            echo "Restored CSVs in $dir:"
+            ls -l "$dir" | sed 's/^/  /'
+          else
+            echo "No previous CSVs restored (first run or no artifact yet)."
+          fi
+      
       - name: Restore (TheSequelCommittee)
         shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
-
+      
       - name: Build (TheSequelCommittee)
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
-
-      # Monday = deep refresh, other days = incremental
-      - name: Decide depth (Monday = deep)
+      
+      # Sunday = deep refresh, other days = incremental (no prune!)
+      - name: Decide depth (Sunday = deep)
         shell: bash
         run: |
-          if [ "$(date -u +%u)" = "1" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
-
-      - name: Run TheSequelCommittee worker
+          if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+      
+      # Pass 1: discover/ratings/aggregate (with reuse, and NO prune on daily)
+      - name: Run TheSequelCommittee (main pass)
         shell: bash
         working-directory: ${{ steps.locate_sequel.outputs.projdir }}
         env:
@@ -88,66 +96,72 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${DEEP:-0}" = "1" ]; then
-            ARGS="--pages 200 --min-movies 2 --allow-fill --refresh-ratings build-all"
+            # Big sweep once a week; allow fill/refresh
+            ARGS="--pages 250 --min-movies 2 --allow-fill --refresh-ratings build-all"
           else
-            ARGS="--pages 10 --min-movies 2 --reuse build-all"
+            # Daily: reuse + append, DO NOT prune missing collections
+            ARGS="--pages 10 --min-movies 2 --reuse --no-prune build-all"
           fi
-          echo "Running TheSequelCommittee with: $ARGS (cwd=$(pwd))"
+          echo "Sequel args: $ARGS"
           dotnet run -c Release --no-build -- $ARGS
-
-      # Diagnose where outputs landed
+      
+      # Pass 2: always emit HTML even if pass 1 bails early
+      - name: Run TheSequelCommittee (html-only)
+        shell: bash
+        working-directory: ${{ steps.locate_sequel.outputs.projdir }}
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          set -euo pipefail
+          echo "Forcing HTML emission from current CSVs (html-only)…"
+          dotnet run -c Release --no-build -- html-only || true
+      
+      # Diagnose: where did HTML land?
       - name: Locate Sequel outputs (diagnostic)
         shell: bash
         run: |
           set -euo pipefail
-          echo "---- search for index.html under any out/ ----"
-          find "${{ github.workspace }}" -type f -path "*/out/*/index.html" -print || true
-          echo "---- list top-level out dirs ----"
-          find "${{ github.workspace }}" -type d -maxdepth 4 -name out -print || true
-
-      # Copy from wherever the app wrote -> /out/thesequelcommittee (for clean URL)
+          echo "---- any index.html under worker/out ----"
+          find "${{ steps.locate_sequel.outputs.projdir }}/out" -type f -name index.html -print || true
+          echo "---- any 'sequelcommittee' dirs under worker/out ----"
+          find "${{ steps.locate_sequel.outputs.projdir }}/out" -type d -name sequelcommittee -print || true
+      
+      # Copy to clean URL folder for Pages: /out/thesequelcommittee
       - name: Collect Sequel site into repo out (/thesequelcommittee)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
-
+      
           candidates=(
             "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
             "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee/html"
             "${{ steps.locate_sequel.outputs.projdir }}/out/html"
-            "${{ github.workspace }}/out/sequelcommittee"
-            "${{ github.workspace }}/out/sequelcommittee/html"
-            "${{ github.workspace }}/out/html"
           )
-
+      
           src=""
           for d in "${candidates[@]}"; do
             if [ -d "$d" ] && [ -f "$d/index.html" ]; then src="$d"; break; fi
           done
-
+      
           if [ -z "$src" ]; then
-            echo "Falling back to search…"
-            src="$(find "${{ github.workspace }}" -type d \( -path "*/out/*/sequelcommittee/html" -o -path "*/out/*/sequelcommittee" \) -exec test -f "{}/index.html" \; -print -quit || true)"
+            echo "::warning::Sequel output not found. The Sequel Committee pages won't update this run."
+            exit 0
           fi
-
-          if [ -z "$src" ]; then
-            src="$(find "${{ github.workspace }}" -type d -path "*/out/*/html" -exec test -f "{}/index.html" \; -print -quit || true)"
-          fi
-
-          if [ -z "$src" ]; then
-            echo "ERROR: Could not find Sequel HTML output."
-            echo "Checked candidates:"
-            printf '  - %s\n' "${candidates[@]}"
-            echo "Searched repo for */out/*/(sequelcommittee[/html]|html) with index.html"
-            exit 1
-          fi
-
+      
           echo "Copying from: $src"
           rsync -a "$src"/ "${{ github.workspace }}/out/thesequelcommittee"/
+      
+      # 3) Persist updated CSVs for next run (artifact overwrites each time)
+      - name: Save Sequel data (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequel-data
+          path: |
+            ${{ steps.locate_sequel.outputs.projdir }}/out/*.csv
+            ${{ steps.locate_sequel.outputs.projdir }}/out/**/*.csv
+          retention-days: 30
 
-          echo "Resulting index:"
-          ls -l "${{ github.workspace }}/out/thesequelcommittee/index.html" || true
 
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
