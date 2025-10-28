@@ -79,10 +79,10 @@ jobs:
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
 
-      - name: Decide depth (Sunday = deep)
+      - name: Decide depth (Tuesday = deep)
         shell: bash
         run: |
-          if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+          if [ "$(date -u +%u)" = "2" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
 
       # Pass 1: main pipeline (deep on Sunday, incremental other days)
       - name: Run TheSequelCommittee (build-all)
