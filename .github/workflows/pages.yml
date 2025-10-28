@@ -24,20 +24,18 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Speed up dotnet a touch
       - name: Speed up dotnet
         shell: bash
         run: |
           echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" >> $GITHUB_ENV
           echo "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1" >> $GITHUB_ENV
 
-      # Debug helper
       - name: Show repo layout
         shell: bash
         run: |
           pwd
           echo "Solutions:"; find . -maxdepth 6 -name "*.sln" -print
-          echo "Projects:";  find . -maxdepth 10 -name "*.csproj" -print
+          echo "Projects:";  find . -maxdepth 12 -name "*.csproj" -print
 
       # ---------- TheSequelCommittee ----------
       - name: Locate TheSequelCommittee worker
@@ -52,43 +50,42 @@ jobs:
           fi
           echo "csproj=$csproj"   >> "$GITHUB_OUTPUT"
           echo "projdir=$(dirname "$csproj")" >> "$GITHUB_OUTPUT"
-      
-      # 1) Pull forward last run's CSVs (artifact is mutable across runs)
+
+      # Bring forward last run's CSVs so daily runs keep growing
       - name: Restore Sequel data (artifact)
         uses: actions/download-artifact@v4
         with:
           name: sequel-data
-          path: ${{ steps.locate_sequel.outputs.projdir }}/out
+          path: ${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee
         continue-on-error: true
-      
+
       - name: Show restored CSVs
         shell: bash
         run: |
           set -euo pipefail
-          dir="${{ steps.locate_sequel.outputs.projdir }}/out"
+          dir="${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
           if [ -d "$dir" ]; then
             echo "Restored CSVs in $dir:"
             ls -l "$dir" | sed 's/^/  /'
           else
             echo "No previous CSVs restored (first run or no artifact yet)."
           fi
-      
+
       - name: Restore (TheSequelCommittee)
         shell: bash
         run: dotnet restore "${{ steps.locate_sequel.outputs.csproj }}"
-      
+
       - name: Build (TheSequelCommittee)
         shell: bash
         run: dotnet build "${{ steps.locate_sequel.outputs.csproj }}" -c Release --no-restore
-      
-      # Sunday = deep refresh, other days = incremental (no prune!)
+
       - name: Decide depth (Sunday = deep)
         shell: bash
         run: |
           if [ "$(date -u +%u)" = "7" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
-      
-      # Pass 1: discover/ratings/aggregate (with reuse, and NO prune on daily)
-      - name: Run TheSequelCommittee (main pass)
+
+      # Pass 1: main pipeline (deep on Sunday, incremental other days)
+      - name: Run TheSequelCommittee (build-all)
         shell: bash
         working-directory: ${{ steps.locate_sequel.outputs.projdir }}
         env:
@@ -96,16 +93,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${DEEP:-0}" = "1" ]; then
-            # Big sweep once a week; allow fill/refresh
-            ARGS="--pages 250 --min-movies 2 --allow-fill --refresh-ratings build-all"
+            ARGS="--pages 250 --min-movies 2 --allow-fill --no-prune build-all"
           else
-            # Daily: reuse + append, DO NOT prune missing collections
             ARGS="--pages 10 --min-movies 2 --reuse --no-prune build-all"
           fi
-          echo "Sequel args: $ARGS"
+          echo "Running Sequel build-all with: $ARGS"
           dotnet run -c Release --no-build -- $ARGS
-      
-      # Pass 2: always emit HTML even if pass 1 bails early
+
+      # Pass 2: ensure HTML is emitted from whatever CSVs exist
       - name: Run TheSequelCommittee (html-only)
         shell: bash
         working-directory: ${{ steps.locate_sequel.outputs.projdir }}
@@ -113,55 +108,53 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           set -euo pipefail
-          echo "Forcing HTML emission from current CSVs (html-only)…"
+          echo "Forcing HTML emission (html-only)…"
           dotnet run -c Release --no-build -- html-only || true
-      
-      # Diagnose: where did HTML land?
+
       - name: Locate Sequel outputs (diagnostic)
         shell: bash
         run: |
           set -euo pipefail
           echo "---- any index.html under worker/out ----"
           find "${{ steps.locate_sequel.outputs.projdir }}/out" -type f -name index.html -print || true
-          echo "---- any 'sequelcommittee' dirs under worker/out ----"
-          find "${{ steps.locate_sequel.outputs.projdir }}/out" -type d -name sequelcommittee -print || true
-      
+          echo "---- tree of worker/out/sequelcommittee (top) ----"
+          find "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee" -maxdepth 2 -type f -print || true
+
       # Copy to clean URL folder for Pages: /out/thesequelcommittee
       - name: Collect Sequel site into repo out (/thesequelcommittee)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${{ github.workspace }}/out/thesequelcommittee"
-      
+
           candidates=(
             "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee"
             "${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee/html"
             "${{ steps.locate_sequel.outputs.projdir }}/out/html"
           )
-      
+
           src=""
           for d in "${candidates[@]}"; do
             if [ -d "$d" ] && [ -f "$d/index.html" ]; then src="$d"; break; fi
           done
-      
+
           if [ -z "$src" ]; then
             echo "::warning::Sequel output not found. The Sequel Committee pages won't update this run."
             exit 0
           fi
-      
+
           echo "Copying from: $src"
           rsync -a "$src"/ "${{ github.workspace }}/out/thesequelcommittee"/
-      
-      # 3) Persist updated CSVs for next run (artifact overwrites each time)
+
+      # Persist updated CSVs so the dataset keeps growing
       - name: Save Sequel data (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: sequel-data
           path: |
-            ${{ steps.locate_sequel.outputs.projdir }}/out/*.csv
-            ${{ steps.locate_sequel.outputs.projdir }}/out/**/*.csv
+            ${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee/*.csv
+            ${{ steps.locate_sequel.outputs.projdir }}/out/sequelcommittee/**/*.csv
           retention-days: 30
-
 
       # ---------- Feed (homepage) ----------
       - name: Locate Feed worker
@@ -169,7 +162,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Feed.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'Feed.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
             echo "Could not find Feed.Worker.csproj"; exit 1
           fi
@@ -205,7 +198,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Albums.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'Albums.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
             echo "Could not find Albums.Worker.csproj"; exit 1
           fi
@@ -252,7 +245,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Fitness.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'Fitness.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
             echo "Could not find Fitness.Worker.csproj"; exit 1
           fi
@@ -283,7 +276,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Photos.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'Photos.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
             echo "Could not find Photos.Worker.csproj"; exit 1
           fi
@@ -315,7 +308,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 10 -iname 'Goodreads.Worker.csproj' -print -quit)"
+          csproj="$(find "$GITHUB_WORKSPACE" -type f -maxdepth 12 -iname 'Goodreads.Worker.csproj' -print -quit)"
           if [ -z "$csproj" ]; then
             echo "Could not find Goodreads.Worker.csproj"; exit 1
           fi
@@ -354,8 +347,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p "${{ github.workspace }}/out"
-          cp -v assets/styles.css "${{ github.workspace }}/out/styles.css"
-          cp -v assets/albums.css "${{ github.workspace }}/out/albums.css"
+          cp -v assets/styles.css "${{ github.workspace }}/out/styles.css" || true
+          cp -v assets/albums.css "${{ github.workspace }}/out/albums.css" || true
 
       # ---------- Configure & Publish ----------
       - name: Configure Pages
