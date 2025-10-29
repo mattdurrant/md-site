@@ -93,12 +93,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${DEEP:-0}" = "1" ]; then
-            ARGS="--pages 800 --min-movies 2 --allow-fill --no-prune build-all"
+            ARGS="--pages 800 --vote-count-min 150 --min-movies 2 --rating-source tmdb"
+            echo "Running Sequel build-all with: $ARGS"
+            dotnet run -c Release --no-build -- $ARGS
           else
             ARGS="--pages 10 --min-movies 2 --reuse --no-prune build-all"
           fi
-          echo "Running Sequel build-all with: $ARGS"
-          dotnet run -c Release --no-build -- $ARGS
+          
+          
 
       # Pass 2: ensure HTML is emitted from whatever CSVs exist
       - name: Run TheSequelCommittee (html-only)
