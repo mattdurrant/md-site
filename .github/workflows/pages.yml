@@ -2,7 +2,7 @@ name: Build and Publish Site
 
 on:
   schedule:
-    - cron: '07 0,6,12,18 * * *'   # 00:07, 06:07, 12:07, 18:07 UTC
+    - cron: '07 0,12 * * *'   # 00:07, 06:07, 12:07, 18:07 UTC
   workflow_dispatch:
 
 permissions:
@@ -82,7 +82,7 @@ jobs:
       - name: Decide depth (Wednesday = deep)
         shell: bash
         run: |
-          if [ "$(date -u +%u)" = "3" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=0" >> $GITHUB_ENV; fi
+          if [ "$(date -u +%u)" = "3" ]; then echo "DEEP=1" >> $GITHUB_ENV; else echo "DEEP=1" >> $GITHUB_ENV; fi
 
       # Pass 1: main pipeline (deep on Sunday, incremental other days)
       - name: Run TheSequelCommittee (build-all)
