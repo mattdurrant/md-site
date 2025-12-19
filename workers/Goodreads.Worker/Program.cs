@@ -18,6 +18,8 @@ internal class Program
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
             Console.WriteLine("Goodreads: fetching RSS…");
+
+            // FetchAsync should now be resilient (UA + retries + empty list on 403/429)
             var books = await GoodreadsRss.FetchAsync(http, rss);
 
             // Most recently read first (fall back to RSS pubDate)
@@ -33,19 +35,28 @@ internal class Program
 .title{font-weight:600}
 .author{color:#444}
 .stars{margin-left:.5rem;white-space:nowrap}
+.notice{padding:.75rem 1rem;background:#fff7e6;border:1px solid #ffe2a8;border-radius:8px;margin:1rem 0;color:#553}
 </style>");
 
+            if (ordered.Count == 0)
+            {
+                // Non-fatal: still generate the page so the overall site build succeeds.
+                body.AppendLine(@"<div class=""notice"">
+<strong>Goodreads is temporarily unavailable</strong><br/>
+The RSS feed returned a blocked/failed response from the build runner. This page will update automatically next time the feed is accessible.
+</div>");
+            }
+
             body.AppendLine(@"<ul class=""list"">");
-                        
-            foreach (var b in books
-                .OrderByDescending(x => x.UserReadAt ?? x.PubDate ?? DateTime.MinValue))
+
+            foreach (var b in ordered)
             {
                 var when = b.UserReadAt ?? b.PubDate ?? DateTime.MinValue;
                 var date = UkDate.D(when);
                 var title = Html.E(b.Title);
                 var author = Html.E(b.Author);
                 var link = string.IsNullOrWhiteSpace(b.Link) ? "#" : b.Link!;
-                var stars = StarString(ParseRating(b.UserRating)); // your existing star helper
+                var stars = StarString(ParseRating(b.UserRating));
 
                 body.AppendLine($@"
 <li>
@@ -60,9 +71,12 @@ internal class Program
 
             var html = Html.Page("Books", body.ToString(), navHtml: Html.BackHomeNav(), showTitle: true);
 
-            await File.WriteAllTextAsync(Path.Combine(outDir, "index.html"), html, Encoding.UTF8);
+            var outPath = Path.Combine(outDir, "index.html");
+            await File.WriteAllTextAsync(outPath, html, Encoding.UTF8);
 
-            Console.WriteLine($"Goodreads: wrote {Path.Combine(outDir, "index.html")} ({ordered.Count} books).");
+            Console.WriteLine($"Goodreads: wrote {outPath} ({ordered.Count} books).");
+
+            // Important: succeed even if Goodreads was blocked (empty list)
             return 0;
         }
         catch (Exception ex)
@@ -72,7 +86,6 @@ internal class Program
         }
     }
 
-    // Helpers
     private static string Env(string name)
     {
         var v = Environment.GetEnvironmentVariable(name);
@@ -86,7 +99,6 @@ internal class Program
 
     private static string StarString(int rating)
     {
-        // ★ = filled, ☆ = empty — same visual style as albums
         var sb = new StringBuilder(5);
         for (int i = 0; i < 5; i++) sb.Append(i < rating ? '★' : '☆');
         return sb.ToString();
