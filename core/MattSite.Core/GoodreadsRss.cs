@@ -39,9 +39,9 @@ public static class GoodreadsRss
                 // Adding a browser-ish UA is frequently enough to avoid 403 on CI.
                 req.Headers.UserAgent.Clear();
                 req.Headers.UserAgent.Add(new ProductInfoHeaderValue("Mozilla", "5.0"));
-                req.Headers.UserAgent.Add(new ProductInfoHeaderValue("(Windows", "NT 10.0)"));
+                req.Headers.UserAgent.Add(new ProductInfoHeaderValue("(Windows NT 10.0)"));
                 req.Headers.UserAgent.Add(new ProductInfoHeaderValue("AppleWebKit", "537.36"));
-                req.Headers.UserAgent.Add(new ProductInfoHeaderValue("(KHTML,", "like Gecko)"));
+                req.Headers.UserAgent.Add(new ProductInfoHeaderValue("(KHTML, like Gecko)"));
                 req.Headers.UserAgent.Add(new ProductInfoHeaderValue("Chrome", "120.0"));
                 req.Headers.UserAgent.Add(new ProductInfoHeaderValue("Safari", "537.36"));
 
