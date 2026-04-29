@@ -53,7 +53,7 @@ public static class EbayApi
         string marketplaceId,         // e.g., "EBAY_GB"
         string deliveryCountry,       // e.g., "GB"
         string query,                 // e.g., "<artist> <album> vinyl"
-        decimal maxPriceGbp = 25m,
+        decimal maxPriceGbp = 30m,
         int limitPerPage = 50,
         int maxPages = 3,
         Action<string>? log = null)
