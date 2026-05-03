@@ -18,7 +18,8 @@ public static class EbayApi
         decimal Total,           // Price + Shipping (same currency)
         DateTime? EndTimeUtc,    // auction end time if available
         string? SellerUsername,
-        string[] BuyingOptions    // e.g., ["AUCTION"] or ["FIXED_PRICE"]
+        string[] BuyingOptions,  // e.g., ["AUCTION"] or ["FIXED_PRICE"]
+        string? LocationCountry  // ISO 3166-1 alpha-2, e.g. "GB", "DE" — from itemLocation.country
     );
 
     // ---- OAuth: client-credentials ----
@@ -138,6 +139,10 @@ public static class EbayApi
                     if (it.TryGetProperty("buyingOptions", out var bo) && bo.ValueKind == JsonValueKind.Array)
                         buying = bo.EnumerateArray().Select(x => x.GetString() ?? "").Where(s => s.Length > 0).ToArray();
 
+                    string? locationCountry = null;
+                    if (it.TryGetProperty("itemLocation", out var loc) && loc.ValueKind == JsonValueKind.Object)
+                        locationCountry = GetString(loc, "country");
+
                     yield return new EbayItem(
                         ItemId: itemId,
                         Title: title,
@@ -149,7 +154,8 @@ public static class EbayApi
                         Total: totalCost,
                         EndTimeUtc: endUtc,
                         SellerUsername: seller,
-                        BuyingOptions: buying
+                        BuyingOptions: buying,
+                        LocationCountry: locationCountry
                     );
                 }
             }

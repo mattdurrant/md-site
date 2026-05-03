@@ -610,6 +610,18 @@ internal class Program
     }
 
     // ---------- eBay page generation ----------
+
+    // UK + EU27 + EEA (Norway, Iceland) + Switzerland
+    private static readonly HashSet<string> UkOrEuropeCountries = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "GB",                                                         // United Kingdom
+        "AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI","FR",      // EU
+        "GR","HR","HU","IE","IT","LT","LU","LV","MT","NL","PL",
+        "PT","RO","SE","SI","SK",
+        "NO","IS",                                                    // EEA non-EU
+        "CH",                                                         // Switzerland
+    };
+
     private static async Task GenerateEbayPageAsync(
         HttpClient http,
         IEnumerable<AlbumAggregate> topAlbums,
@@ -660,6 +672,9 @@ internal class Program
                 ))
                 {
                     if (!string.Equals(item.Currency, "GBP", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    // Only include items dispatched from the UK or Europe
+                    if (!UkOrEuropeCountries.Contains(item.LocationCountry ?? "")) continue;
 
                     bool isAuction = item.BuyingOptions.Any(x => x.Equals("AUCTION", StringComparison.OrdinalIgnoreCase));
                     bool isBuyNow = item.BuyingOptions.Any(x => x.Equals("FIXED_PRICE", StringComparison.OrdinalIgnoreCase));
