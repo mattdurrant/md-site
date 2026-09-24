@@ -60,7 +60,18 @@ internal class Program
             Directory.CreateDirectory(cfg.OutputDir);
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(100) };
-            var token = await SpotifyApi.GetAccessTokenAsync(http, cfg.SpotifyClientId, cfg.SpotifyClientSecret, cfg.SpotifyRefreshToken);
+            var ebayOutBase = Path.GetFullPath(Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, ".."));
+            string token;
+            try
+            {
+                token = await SpotifyApi.GetAccessTokenAsync(http, cfg.SpotifyClientId, cfg.SpotifyClientSecret, cfg.SpotifyRefreshToken);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JsonException)
+            {
+                Console.WriteLine($"Albums skipped: Spotify auth failed ({ex.GetType().Name}: {ex.Message}). Writing empty /albums and /ebay outputs.");
+                await WriteEmptyOutputsAsync(cfg.OutputDir, ebayOutBase);
+                return 0;
+            }
 
             // ---- Purchased albums (optional) ----
             var purchasedPlaylistIdRaw = Environment.GetEnvironmentVariable("PURCHASED_PLAYLIST_ID");
@@ -319,7 +330,7 @@ internal class Program
             var yearsDir = Path.Combine(cfg.OutputDir, "years");
             Directory.CreateDirectory(yearsDir);
 
-            for (int y = DateTime.UtcNow.Year; y >= 2000; y--)
+            foreach (var y in GetRenderedYears())
             {
                 if (!byYear.ContainsKey(y)) byYear[y] = new List<AlbumAggregate>();
                 var list = byYear[y];
@@ -332,7 +343,6 @@ internal class Program
             }
 
             // ===================== eBay: remove purchased THEN take 250 =====================
-            var ebayOutBase = Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, "..");
             var ebayLimit = EnvIntOpt("EBAY_ALBUM_LIMIT") ?? 250;
 
             // Build from the full ranked list (all eligible), remove purchased by ID OR key, then cap to limit
@@ -379,21 +389,24 @@ internal class Program
     // ---------- HTML nav helpers ----------
     private static string BuildYearLinksHtml(bool isMainPage)
     {
-        int start = 2000;
-        int end = DateTime.UtcNow.Year;
-
         var prefix = isMainPage ? "./years/" : "./";
         var allTimeHref = isMainPage ? "./" : "../";
 
         var sb = new StringBuilder();
         sb.Append($@"<div class=""blurb""><a href=""/"">← Home</a></div>");
         sb.Append($@"<a href=""{allTimeHref}"">All Time</a>");
-        for (int y = end; y >= start; y--)
+        foreach (var y in GetRenderedYears())
         {
             sb.Append(" || ");
             sb.Append($@"<a href=""{prefix}{y}.html"">{y}</a>");
         }
         return $@"<div class=""year-links"">{sb}</div>";
+    }
+
+    private static IEnumerable<int> GetRenderedYears()
+    {
+        for (int y = DateTime.UtcNow.Year; y >= 2000; y--)
+            yield return y;
     }
 
     private static string BuildMainBlurbWithSource() =>
@@ -577,6 +590,38 @@ internal class Program
         await File.WriteAllTextAsync(Path.Combine(ebayDir, "searched-albums.html"), page, Encoding.UTF8);
 
         Console.WriteLine($"eBay: wrote list of searched albums → {Path.Combine(ebayDir, "searched-albums.html")}");
+    }
+
+    private static async Task WriteEmptyOutputsAsync(string albumsOutputDir, string ebayOutputDir)
+    {
+        Directory.CreateDirectory(albumsOutputDir);
+
+        var title = "Favourite 0 albums";
+        var mainNav = BuildMainBlurbWithSource() + BuildYearLinksHtml(isMainPage: true);
+        await File.WriteAllTextAsync(
+            Path.Combine(albumsOutputDir, "index.html"),
+            HtmlRenderer.Render(Array.Empty<AlbumAggregate>(), title, mainNav),
+            Encoding.UTF8);
+
+        var yearsDir = Path.Combine(albumsOutputDir, "years");
+        Directory.CreateDirectory(yearsDir);
+        var yearNav = BuildYearLinksHtml(isMainPage: false);
+        foreach (var y in GetRenderedYears())
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(yearsDir, $"{y}.html"),
+                HtmlRenderer.Render(Array.Empty<AlbumAggregate>(), $"Favourite 0 albums of {y}", yearNav),
+                Encoding.UTF8);
+        }
+
+        await WriteEbayAlbumSearchListAsync(Array.Empty<AlbumAggregate>(), ebayOutputDir);
+
+        var ebayDir = Path.Combine(ebayOutputDir, "ebay");
+        Directory.CreateDirectory(ebayDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(ebayDir, "index.html"),
+            EbayRenderer.Render(Array.Empty<EbayRenderer.Row>()),
+            Encoding.UTF8);
     }
 
     // ---- very-lightweight album track cache persisted to out/cache/albums.json ----
