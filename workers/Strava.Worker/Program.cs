@@ -20,11 +20,26 @@ internal class Program
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 
-            Console.WriteLine("Fitness: obtaining Strava token…");
-            var accessToken = await StravaApi.GetAccessTokenAsync(http, clientId, clientSecret, refreshToken);
+            List<StravaApi.Activity> activities;
+            string? noticeHtml = null;
+            try
+            {
+                Console.WriteLine("Fitness: obtaining Strava token…");
+                var accessToken = await StravaApi.GetAccessTokenAsync(http, clientId, clientSecret, refreshToken);
 
-            Console.WriteLine("Fitness: fetching recent Strava activities…");
-            var activities = await StravaApi.GetRecentActivitiesAsync(http, accessToken, perPage: 50, page: 1);
+                Console.WriteLine("Fitness: fetching recent Strava activities…");
+                activities = await StravaApi.GetRecentActivitiesAsync(http, accessToken, perPage: 50, page: 1);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+            {
+                Console.WriteLine($"Fitness skipped: {ex.Message}. Writing empty /fitness output.");
+                activities = new List<StravaApi.Activity>();
+                noticeHtml = @"
+<div class=""notice"">
+  <strong>Strava is temporarily unavailable</strong><br/>
+  The build runner could not read recent activities from Strava. This page will update automatically next time Strava is accessible.
+</div>";
+            }
 
             // ---- Render: simple two-line list per activity ----
             var body = new StringBuilder();
@@ -35,7 +50,13 @@ internal class Program
 .fitdate{color:#666;margin-right:.5rem;white-space:nowrap}
 .fitname a{text-decoration:none}
 .fitmeta{color:#555;font-size:.92em;margin-top:4px}
-</style>
+.notice{padding:.75rem 1rem;background:#fff7e6;border:1px solid #ffe2a8;border-radius:8px;margin:1rem 0;color:#553}
+</style>");
+
+            if (!string.IsNullOrWhiteSpace(noticeHtml))
+                body.Append(noticeHtml);
+
+            body.Append(@"
 <ul class=""fitlist"">");
 
             foreach (var a in activities)
