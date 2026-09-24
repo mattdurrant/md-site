@@ -60,15 +60,16 @@ internal class Program
             Directory.CreateDirectory(cfg.OutputDir);
 
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(100) };
+            var ebayOutBase = Path.GetFullPath(Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, ".."));
             string token;
             try
             {
                 token = await SpotifyApi.GetAccessTokenAsync(http, cfg.SpotifyClientId, cfg.SpotifyClientSecret, cfg.SpotifyRefreshToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JsonException)
             {
-                Console.WriteLine($"Albums skipped: {ex.Message}");
-                await WriteEmptyOutputsAsync(cfg.OutputDir, Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, ".."));
+                Console.WriteLine($"Albums skipped: Spotify auth failed ({ex.GetType().Name}: {ex.Message}). Writing empty /albums and /ebay outputs.");
+                await WriteEmptyOutputsAsync(cfg.OutputDir, ebayOutBase);
                 return 0;
             }
 
@@ -342,7 +343,6 @@ internal class Program
             }
 
             // ===================== eBay: remove purchased THEN take 250 =====================
-            var ebayOutBase = Environment.GetEnvironmentVariable("EBAY_OUTPUT_DIR") ?? Path.Combine(cfg.OutputDir, "..");
             var ebayLimit = EnvIntOpt("EBAY_ALBUM_LIMIT") ?? 250;
 
             // Build from the full ranked list (all eligible), remove purchased by ID OR key, then cap to limit
