@@ -330,7 +330,7 @@ internal class Program
             var yearsDir = Path.Combine(cfg.OutputDir, "years");
             Directory.CreateDirectory(yearsDir);
 
-            for (int y = DateTime.UtcNow.Year; y >= 2000; y--)
+            foreach (var y in GetRenderedYears())
             {
                 if (!byYear.ContainsKey(y)) byYear[y] = new List<AlbumAggregate>();
                 var list = byYear[y];
@@ -389,21 +389,24 @@ internal class Program
     // ---------- HTML nav helpers ----------
     private static string BuildYearLinksHtml(bool isMainPage)
     {
-        int start = 2000;
-        int end = DateTime.UtcNow.Year;
-
         var prefix = isMainPage ? "./years/" : "./";
         var allTimeHref = isMainPage ? "./" : "../";
 
         var sb = new StringBuilder();
         sb.Append($@"<div class=""blurb""><a href=""/"">← Home</a></div>");
         sb.Append($@"<a href=""{allTimeHref}"">All Time</a>");
-        for (int y = end; y >= start; y--)
+        foreach (var y in GetRenderedYears())
         {
             sb.Append(" || ");
             sb.Append($@"<a href=""{prefix}{y}.html"">{y}</a>");
         }
         return $@"<div class=""year-links"">{sb}</div>";
+    }
+
+    private static IEnumerable<int> GetRenderedYears()
+    {
+        for (int y = DateTime.UtcNow.Year; y >= 2000; y--)
+            yield return y;
     }
 
     private static string BuildMainBlurbWithSource() =>
@@ -603,7 +606,7 @@ internal class Program
         var yearsDir = Path.Combine(albumsOutputDir, "years");
         Directory.CreateDirectory(yearsDir);
         var yearNav = BuildYearLinksHtml(isMainPage: false);
-        for (int y = DateTime.UtcNow.Year; y >= 2000; y--)
+        foreach (var y in GetRenderedYears())
         {
             await File.WriteAllTextAsync(
                 Path.Combine(yearsDir, $"{y}.html"),
