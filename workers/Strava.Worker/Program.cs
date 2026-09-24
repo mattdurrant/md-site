@@ -30,7 +30,7 @@ internal class Program
                 Console.WriteLine("Fitness: fetching recent Strava activities…");
                 activities = await StravaApi.GetRecentActivitiesAsync(http, accessToken, perPage: 50, page: 1);
             }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
             {
                 Console.WriteLine($"Fitness skipped: {ex.Message}. Writing empty /fitness output.");
                 activities = new List<StravaApi.Activity>();
